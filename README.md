@@ -30,9 +30,8 @@
 
 ---
 
-**FrugalZeus** is a sovereign, zero-idle-waste **Internal Developer Platform (IDP)** reference architecture. It demonstrates an end-to-end GitOps delivery pipeline, localized cloud IaC emulation, unified OpenTelemetry observability, and granular FinOps cost attribution — all orchestrated on any Kubernetes cluster or local VM.
-
-> Built for Staff Platform Engineers. No cloud bills. No noise. Just signal.
+**FrugalZeus** is a sovereign, zero-idle-waste **Internal Developer Platform (IDP)** reference architecture. It demonstrates an end-to-end GitOps delivery pipeline, localized cloud IaC emulation, unified OpenTelemetry observability, and granular FinOps cost attribution - all orchestrated on any Self Hosted,Managed (GKE,AKS,EKS) Kubernetes cluster or simply K3s/kind Cluster on local VM.
+ > **lightweight** and **frugal** for pure signal
 
 ---
 
