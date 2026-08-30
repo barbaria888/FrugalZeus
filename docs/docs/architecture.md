@@ -2,6 +2,7 @@
 
 This document details the core architectural tenets and the rationale behind the platform's engineering design.
 
+
 ## Key Architectural Principles
 
 ### 1. Deterministic GitOps Reconciliation
