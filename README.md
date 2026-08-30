@@ -29,43 +29,6 @@
 
  <img src="https://github.com/barbaria888/FrugalZeus/blob/main/images/Architecture.png" />
  
-```mermaid
-graph TB
-    subgraph "Control Plane (k3s / Kubernetes Node)"
-        ArgoCD["Argo CD (GitOps Controller)"]
-        Floci["Floci (AWS Emulation API)"]
-        OC["OpenCost (FinOps Engine)"]
-    end
-
-    subgraph "Observability Stack (LGTM)"
-        Prom["Prometheus (Metrics)"]
-        Loki["Loki (Logs)"]
-        Tempo["Tempo (Traces)"]
-        Grafana["Grafana (Visualization)"]
-        Promtail["Promtail (Log Forwarding)"]
-    end
-
-    subgraph "Tenant Namespace (e.g., tenant-team-alpha)"
-        App["Guestbook / FastAPI (OTel Instrumented)"]
-        Guardrails["NetworkPolicy · LimitRange · ResourceQuota"]
-    end
-
-    GitRepo["Git Repository"] -->|"State Sync"| ArgoCD
-    ArgoCD -->|"Wave 1"| Floci
-    ArgoCD -->|"Wave 2"| Prom
-    ArgoCD -->|"Wave 3"| Loki & Tempo
-    ArgoCD -->|"Wave 4"| OC
-    ArgoCD -->|"Wave 5"| App
-
-    App -->|"OTLP Traces"| Tempo
-    App -->|"/metrics"| Prom
-    Promtail -->|"Log Streams"| Loki
-
-    OC -->|"Cost Queries"| Prom
-    Grafana -->|"Unified Pane"| Prom & Loki & Tempo
-    App -->|"S3 SDK Calls"| Floci
-```
-
 </details>
 
 ---
