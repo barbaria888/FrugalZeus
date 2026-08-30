@@ -4,11 +4,25 @@
 
 # FrugalZeus ⚜️
 
-### Sovereign Cloud-Native Internal Developer Platform
+## Cloud-Native Engineering Platform
 
+<img src="https://argo-cd.readthedocs.io/en/stable/assets/argo.png" alt="Argo CD" width="40"/>  
+<img height="40" alt="Terraform" src="https://github.com/user-attachments/assets/9b7da754-a646-4f5b-b775-bb750747bd1f"/>
+<img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/githubactions/githubactions-original.svg" height="40" alt="GitHub Actions"/>
+<img src="https://raw.githubusercontent.com/homarr-labs/dashboard-icons/main/png/grafana.png" width="40"/>
+<img src="https://raw.githubusercontent.com/homarr-labs/dashboard-icons/main/png/prometheus.png" width="40"/>
+<img src="https://raw.githubusercontent.com/homarr-labs/dashboard-icons/main/png/loki.png" width="40"/>
+<img src="https://raw.githubusercontent.com/homarr-labs/dashboard-icons/main/png/tempo.png" width="40"/>
+<img src="https://raw.githubusercontent.com/homarr-labs/dashboard-icons/main/png/opencost.png" width="40"/>
+<img src="https://raw.githubusercontent.com/barbaria888/Otel-Jaegar/main/images/OpenTelemetry.png" height="40"/>
+<img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/kubernetes/kubernetes-plain-wordmark.svg" height="50" alt="Kubernetes"/>
+
+<br/>
 
 [![Build & Deploy Microservice](https://github.com/barbaria888/FrugalZeus/actions/workflows/ci-build-push.yml/badge.svg)](https://github.com/barbaria888/FrugalZeus/actions/workflows/ci-build-push.yml)
 [![Deploy Documentation](https://github.com/barbaria888/FrugalZeus/actions/workflows/docs-deploy.yml/badge.svg)](https://github.com/barbaria888/FrugalZeus/actions/workflows/docs-deploy.yml)
+[![GitOps](https://img.shields.io/badge/GitOps-Argo%20CD-orange?logo=argo)](https://argoproj.github.io/cd/)
+[![IaC](https://img.shields.io/badge/IaC-Terraform-blueviolet?logo=terraform)](https://www.terraform.io/)
 [![Observability](https://img.shields.io/badge/Observability-LGTM%20Stack-orange?logo=grafana)](https://grafana.com/)
 [![FinOps](https://img.shields.io/badge/FinOps-OpenCost-brightgreen)](https://www.opencost.io/)
 
@@ -16,8 +30,9 @@
 
 ---
 
-**FrugalZeus** is a sovereign, zero-idle-waste **Internal Developer Platform (IDP)** reference architecture. It demonstrates an end-to-end GitOps delivery pipeline, localized cloud IaC emulation, unified OpenTelemetry observability, and granular FinOps cost attribution - all orchestrated on any Self Hosted,Managed (GKE,AKS,EKS) Kubernetes cluster or simply K3s/kind Cluster on local VM.
- > **lightweight** and **frugal** for pure signal
+**FrugalZeus** is a sovereign, zero-idle-waste **Internal Developer Platform (IDP)** reference architecture. It demonstrates an end-to-end GitOps delivery pipeline, localized cloud IaC emulation, unified OpenTelemetry observability, and granular FinOps cost attribution — all orchestrated on any Self-Hosted, Managed (GKE, AKS, EKS) Kubernetes cluster, or simply a k3s/kind cluster on a local VM.
+
+> **Lightweight** and **frugal** for pure signal. Built for Platform Architects and Engineering Teams.
 
 ---
 
@@ -27,13 +42,48 @@
 <summary><strong>App-of-Apps Topology (click to expand)</strong></summary>
 <br/>
 
- <img src="https://github.com/barbaria888/FrugalZeus/blob/main/images/Architecture.png" />
- 
+```mermaid
+graph TB
+    subgraph "Control Plane (k3s / Kubernetes Node)"
+        ArgoCD["Argo CD (GitOps Controller)"]
+        Floci["Floci (AWS Emulation API)"]
+        OC["OpenCost (FinOps Engine)"]
+    end
+
+    subgraph "Observability Stack (LGTM)"
+        Prom["Prometheus (Metrics)"]
+        Loki["Loki (Logs)"]
+        Tempo["Tempo (Traces)"]
+        Grafana["Grafana (Visualization)"]
+        Promtail["Promtail (Log Forwarding)"]
+    end
+
+    subgraph "Tenant Namespace (e.g., tenant-team-alpha)"
+        App["Guestbook / FastAPI (OTel Instrumented)"]
+        Guardrails["NetworkPolicy · LimitRange · ResourceQuota"]
+    end
+
+    GitRepo["Git Repository"] -->|"State Sync"| ArgoCD
+    ArgoCD -->|"Wave 1"| Floci
+    ArgoCD -->|"Wave 2"| Prom
+    ArgoCD -->|"Wave 3"| Loki & Tempo
+    ArgoCD -->|"Wave 4"| OC
+    ArgoCD -->|"Wave 5"| App
+
+    App -->|"OTLP Traces"| Tempo
+    App -->|"/metrics"| Prom
+    Promtail -->|"Log Streams"| Loki
+
+    OC -->|"Cost Queries"| Prom
+    Grafana -->|"Unified Pane"| Prom & Loki & Tempo
+    App -->|"S3 SDK Calls"| Floci
+```
+
 </details>
 
 ---
 
-##  Platform Capabilities
+## Platform Capabilities
 
 | Capability | Component | Design Decision |
 | :--- | :--- | :--- |
@@ -47,7 +97,7 @@
 
 ---
 
-##  Quick Start
+## Quick Start
 
 ```bash
 # 1. Clone
@@ -97,7 +147,7 @@ make clean            # Destroy local k3s cluster
 
 ---
 
-##  Repository Layout
+## Repository Layout
 
 ```text
 FrugalZeus/
