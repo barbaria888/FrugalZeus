@@ -7,11 +7,12 @@ metadata:
     app: team-alpha-svc
     platform.io/tenant: "true"
 spec:
-  type: ClusterIP
+  type: NodePort
   ports:
     - name: http
       port: 8000
       targetPort: 8000
+      nodePort: 30800
     - name: metrics
       port: 9464
       targetPort: 9464

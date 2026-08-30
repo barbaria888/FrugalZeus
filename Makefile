@@ -9,13 +9,15 @@ bootstrap: ## Full platform setup: k3s -> Argo CD -> Floci -> Terraform
 
 ports: ## Open all service UIs (single command)
 	@echo ""
-	@echo "  Grafana:   http://localhost:3000   (admin / platform-admin)"
-	@echo "  Argo CD:   https://localhost:8080  (admin / $$($(MAKE) -s password))"
-	@echo "  App:       http://localhost:8000"
-	@echo "  OpenCost:  http://localhost:9003"
+	@echo "Direct NodePort Endpoints:"
+	@echo "  Grafana:   http://localhost:30000  (admin / platform-admin)"
+	@echo "  Argo CD:   http://localhost:30080  (admin / $$($(MAKE) -s password))"
+	@echo "  App:       http://localhost:30800"
+	@echo "  OpenCost:  http://localhost:30903"
 	@echo ""
+	@echo "Forwarding to local short ports (3000, 8080, 8000, 9003)..."
 	@kubectl port-forward svc/prometheus-grafana   -n monitoring         3000:80   > /dev/null 2>&1 &
-	@kubectl port-forward svc/argocd-server         -n argocd            8080:443  > /dev/null 2>&1 &
+	@kubectl port-forward svc/argocd-server         -n argocd            8080:80   > /dev/null 2>&1 &
 	@kubectl port-forward svc/team-alpha-svc        -n tenant-team-alpha 8000:8000 > /dev/null 2>&1 &
 	@kubectl port-forward svc/opencost              -n opencost          9003:9003 > /dev/null 2>&1 &
 	@echo "All services forwarded. Press Ctrl+C to stop."
