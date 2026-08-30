@@ -111,15 +111,37 @@ done
 if [ ${#MISSING_ERRORS[@]} -gt 0 ]; then
     echo "" >&2
     echo "================================================================================" >&2
-    echo " FrugalZeus Platform Error: Required services are not ready or missing" >&2
+    echo " FrugalZeus: Required platform services are NOT ready" >&2
     echo "================================================================================" >&2
+    echo "" >&2
+    echo "Missing:" >&2
     for err in "${MISSING_ERRORS[@]}"; do
         echo "  $err" >&2
     done
     echo "" >&2
-    echo "Diagnosis:" >&2
-    echo "  The Argo CD GitOps applications may still be syncing or provisioning." >&2
-    echo "  Run 'make status' or 'kubectl get applications -n argocd' to inspect health." >&2
+
+    # Show Argo CD Application sync status to help diagnose
+    echo "Argo CD Application Status:" >&2
+    if kubectl get applications -n argocd 2>/dev/null | head -20 >&2; then
+        true
+    else
+        echo "  (No Argo CD Applications found in namespace 'argocd')" >&2
+        echo "" >&2
+        echo "  >>> Applications have not been applied to this cluster yet." >&2
+    fi
+
+    echo "" >&2
+    echo "Fix: Run the following commands on the cluster, then retry 'make ports':" >&2
+    echo "" >&2
+    echo "  Step 1 — Apply all Argo CD applications from Git:" >&2
+    echo "    make apply-apps" >&2
+    echo "" >&2
+    echo "  Step 2 — Wait for all apps to reach Synced + Healthy (up to 10 min):" >&2
+    echo "    make sync-wait" >&2
+    echo "" >&2
+    echo "  Step 3 — Retry:" >&2
+    echo "    make ports" >&2
+    echo "" >&2
     echo "================================================================================" >&2
     exit 1
 fi
