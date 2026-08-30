@@ -1,8 +1,20 @@
-# FrugalZeus⚜️: Cloud-Native Engineering  Platform 
+<div align="center">
+    
+# FrugalZeus⚜️
 
-[![GitOps](https://img.shields.io/badge/GitOps-Argo%20CD-orange)](https://argoproj.github.io/cd/) [![IaC](https://img.shields.io/badge/IaC-Terraform-blue)](https://www.terraform.io/) [![Runtime](https://img.shields.io/badge/Kubernetes-k3s-lightgrey)](https://k3s.io/) [![Observability](https://img.shields.io/badge/Observability-LGTM%20Stack-red)](https://grafana.com/) [![FinOps](https://img.shields.io/badge/FinOps-OpenCost-green)](https://www.opencost.io/)
+## Cloud-Native Engineering  Platform 
 
-**FrugalZeus** is a sovereign, zero-idle-waste Internal Developer Platform (IDP) reference architecture. Designed for staff platform engineers, it demonstrates an end-to-end GitOps delivery pipeline, localized cloud IaC emulation, unified OpenTelemetry observability, and granular sub-namespace FinOps cost attribution—all orchestrated on a highly constrained, single-node Linux VM topology.
+<img src="https://argo-cd.readthedocs.io/en/stable/assets/argo.png" alt="Argo CD" width="50"/>  <img  height="70" alt="terraform" src="https://github.com/user-attachments/assets/9b7da754-a646-4f5b-b775-bb750747bd1f" />
+<img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/githubactions/githubactions-original.svg" height="70" alt="GitHub Actions" />&nbsp;
+<img src="https://github.com/homarr-labs/dashboard-icons/blob/main/png/loki.png" width="70"/>
+<img src="https://github.com/homarr-labs/dashboard-icons/blob/main/png/grafana.png" width="70"/>
+<img src="https://github.com/homarr-labs/dashboard-icons/blob/main/png/tempo.png" width="70"/>
+<img src="https://github.com/homarr-labs/dashboard-icons/blob/main/png/prometheus.png" width="70"/>
+<img src="https://github.com/barbaria888/Otel-Jaegar/blob/main/images/OpenTelemetry.png" height="80">
+[![Runtime](https://img.shields.io/badge/Kubernetes-k3s-lightgrey)](https://k3s.io/) [![Observability](https://img.shields.io/badge/Observability-LGTM%20Stack-red)](https://grafana.com/) [![FinOps](https://img.shields.io/badge/FinOps-OpenCost-green)](https://www.opencost.io/)
+</div>
+
+**FrugalZeus** is a sovereign, zero-idle-waste Internal Developer Platform (IDP) . It demonstrates an end-to-end GitOps delivery pipeline, localized cloud IaC emulation, unified OpenTelemetry observability, and granular sub-namespace FinOps cost attribution—all orchestrated on any Kubernetes Cluster
 
 ---
 
