@@ -11,7 +11,8 @@
 <img src="https://github.com/homarr-labs/dashboard-icons/blob/main/png/tempo.png" width="70"/>
 <img src="https://github.com/homarr-labs/dashboard-icons/blob/main/png/prometheus.png" width="70"/>
 <img src="https://github.com/barbaria888/Otel-Jaegar/blob/main/images/OpenTelemetry.png" height="80">
-[![Runtime](https://img.shields.io/badge/Kubernetes-k3s-lightgrey)](https://k3s.io/) [![Observability](https://img.shields.io/badge/Observability-LGTM%20Stack-red)](https://grafana.com/) [![FinOps](https://img.shields.io/badge/FinOps-OpenCost-green)](https://www.opencost.io/)
+<img src="https://github.com/homarr-labs/dashboard-icons/blob/main/png/opencost.png" width="70"/>
+<img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/kubernetes/kubernetes-plain-wordmark.svg" height="90" alt="Kubernetes" /> 
 </div>
 
 **FrugalZeus** is a sovereign, zero-idle-waste Internal Developer Platform (IDP) . It demonstrates an end-to-end GitOps delivery pipeline, localized cloud IaC emulation, unified OpenTelemetry observability, and granular sub-namespace FinOps cost attribution—all orchestrated on any Kubernetes Cluster
