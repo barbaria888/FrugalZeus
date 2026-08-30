@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
         - name: microservice
-          image: hardik0811/frugalzeus:latest
+          image: docker.io/hardik0811/frugalzeus:bf04d5aa531c63b7e69b3affd8ff47a3ae97eea6
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8000
