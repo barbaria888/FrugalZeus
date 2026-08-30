@@ -1,4 +1,4 @@
-# FrugalZeus: Cloud-Native Platform Engineering Reference Architecture
+# FrugalZeus⚜️: Cloud-Native Engineering  Platform 
 
 [![GitOps](https://img.shields.io/badge/GitOps-Argo%20CD-orange)](https://argoproj.github.io/cd/) [![IaC](https://img.shields.io/badge/IaC-Terraform-blue)](https://www.terraform.io/) [![Runtime](https://img.shields.io/badge/Kubernetes-k3s-lightgrey)](https://k3s.io/) [![Observability](https://img.shields.io/badge/Observability-LGTM%20Stack-red)](https://grafana.com/) [![FinOps](https://img.shields.io/badge/FinOps-OpenCost-green)](https://www.opencost.io/)
 
