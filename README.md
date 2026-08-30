@@ -108,7 +108,7 @@ make clean      # Uninstall k3s completely
 ```
 ---
 
-## Hw to Use FrugalZeus
+## How to Use FrugalZeus
 Now that your repository is fully pushed to GitHub (https://github.com/barbaria888/FrugalZeus.git) and all templates are updated to target your repository URL, here is how you can use, run, and present it:
 
 Step 1: Configure GitHub Actions Secrets
@@ -122,38 +122,46 @@ DOCKERHUB_TOKEN: A personal access token generated from your Docker Hub account 
 Step 2: Bootstrap the Entire Platform
 SSH into your Linux VM/environment, clone the repository, and run the single bootstrap command:
 
-bash
+```bash
 # 1. Clone the repository
 git clone https://github.com/barbaria888/FrugalZeus.git
 cd FrugalZeus
+```
 # 2. Setup k3s, Argo CD, Floci, and provision S3 resources via Terraform
+```
 make bootstrap
-What this does: It installs k3s, installs Argo CD, applies the root App-of-Apps manifest, waits for Floci (AWS simulator) to become healthy, port-forwards Floci to the host, and executes terraform apply to provision the S3 bucket.
-Step 3: Run Port-Forwards & Access Services
+```
+> What this does: It installs k3s, installs Argo CD, applies the root App-of-Apps manifest, waits for Floci (AWS simulator) to become healthy, port-forwards Floci to the host, and executes terraform apply to provision the S3 bucket.
+
+#  3: Run Port-Forwards & Access Services
 Open all service interfaces locally using a single command:
 
-bash
+```bash
 make ports
+```
 This will forward and output the URLs to access:
-
+```
 Grafana (Observability Dashboard): http://localhost:3000 (User: admin / Password: platform-admin)
 Argo CD (GitOps Status): https://localhost:8080 (User: admin / Password: can be retrieved with make password)
 FastAPI Application: http://localhost:8000
 OpenCost (Cost Allocation Dashboard): http://localhost:9003
-Step 4: Smoke Test the System
+```
+
+## 4: Smoke Test the System
 To verify that everything is running correctly, run:
 
-bash
+```bash
 make test
+```
 This tests:
-
-/health on the FastAPI microservice.
-/upload to write an object to the emulated S3 bucket (Floci).
-/list to read back the objects from the bucket.
-/metrics to ensure the unified OpenTelemetry exporter is emitting Prometheus-formatted metrics on port 9464.
-Step 5: Explore Logs & Traces in Grafana
+- /health on the FastAPI microservice.
+- /upload to write an object to the emulated S3 bucket (Floci).
+- /list to read back the objects from the bucket.
+- /metrics to ensure the unified OpenTelemetry exporter is emitting Prometheus-formatted metrics on port 9464.
+## 5: Explore Logs & Traces in Grafana
 Navigate to Grafana (http://localhost:3000) and explore the telemetry signals:
-
+<div align="center">
 Metrics: Query Prometheus using the metric: http_server_request_duration_seconds_bucket{service_name="team-alpha-svc"}.
 Logs: Query Loki ({namespace="tenant-team-alpha"}) to inspect the real-time container output.
 Traces: Go to Explore → select Tempo → Search. You'll see distributed trace waterfalls showing incoming HTTP requests alongside subsequent S3 client operations.
+</div>
