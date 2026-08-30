@@ -1,4 +1,4 @@
-.PHONY: bootstrap ports status password test clean help
+.PHONY: bootstrap check-platform ports status password test clean help
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*##' $(MAKEFILE_LIST) | sort | \
@@ -7,7 +7,14 @@ help: ## Show this help
 bootstrap: ## Full platform setup: k3s -> Argo CD -> Floci -> Terraform
 	bash k3s/bootstrap.sh
 
-ports: ## Open all service UIs (single command)
+check-platform: ## Verify platform namespaces/services exist
+	@kubectl get namespace argocd platform-infra monitoring opencost tenant-team-alpha > /dev/null
+	@kubectl get svc/prometheus-grafana -n monitoring > /dev/null
+	@kubectl get svc/argocd-server -n argocd > /dev/null
+	@kubectl get svc/team-alpha-svc -n tenant-team-alpha > /dev/null
+	@kubectl get svc/opencost -n opencost > /dev/null
+
+ports: check-platform ## Open all service UIs (single command)
 	@echo ""
 	@echo "  Grafana:   http://localhost:3000   (admin / platform-admin)"
 	@echo "  Argo CD:   https://localhost:8080  (admin / $$($(MAKE) -s password))"
@@ -34,7 +41,7 @@ status: ## Show platform health: nodes, apps, pods
 	@echo "=== Pods (all namespaces) ==="
 	@kubectl get pods -A
 
-test: ## Smoke test the microservice endpoints
+test: check-platform ## Smoke test the microservice endpoints
 	@echo "Testing /health..."
 	@curl -sf http://localhost:8000/health | jq .
 	@echo "Testing /upload..."
