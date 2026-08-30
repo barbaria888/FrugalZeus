@@ -28,9 +28,6 @@ spec:
 
         grafana:
           adminPassword: "platform-admin"
-          service:
-            type: NodePort
-            nodePort: 30000
           sidecar:
             dashboards:
               enabled: true
@@ -38,6 +35,12 @@ spec:
             datasources:
               enabled: true
           additionalDataSources:
+            - name: Loki
+              type: loki
+              access: proxy
+              url: http://loki.monitoring.svc.cluster.local:3100
+              jsonData:
+                maxLines: 1000
             - name: Tempo
               type: tempo
               access: proxy
