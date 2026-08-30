@@ -21,13 +21,16 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v6
 
       - name: Setup Python
         uses: actions/setup-python@v6
         with:
           python-version: '3.12'
+
+      - name: Setup GitHub Pages
+        uses: actions/configure-pages@v5
 
       - name: Install MkDocs Material
         run: |
@@ -38,7 +41,7 @@ jobs:
           cd docs
           mkdocs build
 
-      - name: Upload GitHub Pages artifact
+      - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v4
         with:
           path: docs/site
