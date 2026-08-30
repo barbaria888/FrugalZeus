@@ -1,30 +1,181 @@
-site_name: Flagship Platform
-site_description: Cloud-Native Platform Engineering Portfolio
+site_name: FrugalZeus ⚜️
+site_description: Cloud-Native Engineering Platform & FinOps
+site_author: Hardik Arora
+
 theme:
   name: material
+
+  # ─────────────────────────────────────────────
+  # Visual identity
+  # ─────────────────────────────────────────────
+  logo: assets/frugalzeus-logo.svg
+  favicon: assets/frugalzeus-logo.svg
+
+  font:
+    text: Inter
+    code: JetBrains Mono
+
   palette:
-    scheme: slate
-    primary: indigo
-    accent: cyan
+
+    # Light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: red
+      accent: white
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to dark mode
+
+    # Dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: cyan
+      toggle:
+        icon: material/weather-night
+        name: Switch to light mode
+
   features:
+
+    # Navigation
     - navigation.tabs
     - navigation.sections
+    - navigation.expand
+    - navigation.path
+    - navigation.top
+    - navigation.tracking
+
+    # Search
+    - search.suggest
+    - search.highlight
+    - search.share
+
+    # Content
     - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+
+    # UX
+    - toc.follow
+    - header.autohide
+
+  icon:
+    admonition:
+      note: material/information
+      abstract: material/lightbulb
+      info: material/information-outline
+      tip: material/target
+      success: material/check-circle
+      question: material/help-circle
+      warning: material/alert
+      failure: material/close-circle
+      danger: material/shield-alert
+      bug: material/bug
+      example: material/flask
+      quote: material/format-quote
+
+
+# ─────────────────────────────────────────────
+# Navigation
+# ─────────────────────────────────────────────
 
 nav:
-  - Home: index.md
-  - Architecture: architecture.md
-  - Onboard a Team: onboarding.md
-  - Observability: observability.md
-  - Cost Attribution: finops.md
+
+  -  Home:
+      - Overview: index.md
+
+  -  Platform:
+      - Architecture: architecture.md
+      - GitOps & Argo CD: gitops.md
+      - Kubernetes Runtime: kubernetes.md
+      - Infrastructure & IaC: infrastructure.md
+
+  -  Developer Experience:
+      - Onboard a Team: onboarding.md
+
+  -  Observability:
+      - Observability Strategy: observability.md
+      - Metrics: observability.md
+      - Logs: observability.md
+      - Traces: observability.md
+
+  -  FinOps:
+      - Cost Attribution: finops.md
+
+  -  Operations:
+      - Bootstrap: operations/bootstrap.md
+      - Troubleshooting: operations/troubleshooting.md
+
+
+# ─────────────────────────────────────────────
+# Markdown extensions
+# ─────────────────────────────────────────────
 
 markdown_extensions:
+
+  # Admonitions
   - admonition
-  - pymdownx.highlight
+
+  # Tables
+  - tables
+
+  # Code highlighting
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+
+  # Mermaid / diagrams
   - pymdownx.superfences:
       custom_fences:
+
         - name: mermaid
           class: mermaid
           format: !!python/name:pymdownx.superfences.fence_code_format
+
+  # Tabs
   - pymdownx.tabbed:
       alternate_style: true
+
+  # Better lists
+  - pymdownx.tasklist:
+      custom_checkbox: true
+
+  # Attributes
+  - attr_list
+
+  # Emoji
+  - pymdownx.emoji:
+      emoji_index: !!python/name:materialx.emoji.twemoji
+      emoji_generator: !!python/name:materialx.emoji.to_svg
+
+  # Footnotes
+  - footnotes
+
+  # Definition lists
+  - def_list
+
+
+# ─────────────────────────────────────────────
+# Plugins
+# ─────────────────────────────────────────────
+
+plugins:
+
+  - search
+
+
+# ─────────────────────────────────────────────
+# Extra styling
+# ─────────────────────────────────────────────
+
+extra_css:
+  - stylesheets/extra.css
+
+
+# ─────────────────────────────────────────────
+# Extra JavaScript
+# ─────────────────────────────────────────────
+
+extra_javascript:
+  - javascripts/extra.js
