@@ -29,7 +29,7 @@
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/<YOUR_USERNAME>/FrugalZeus.git
+git clone https://github.com/barbaria888/FrugalZeus.git
 cd FrugalZeus
 
 # 2. Bootstrap the entire platform

@@ -6,7 +6,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/<YOUR_USERNAME>/Flagship-Platform.git
+    repoURL: https://github.com/barbaria888/FrugalZeus.git
     targetRevision: main
     path: platform-gitops/infrastructure
   destination:

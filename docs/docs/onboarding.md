@@ -30,7 +30,7 @@ To onboard a new tenant team (e.g., `team-beta`), follow these simple steps:
    spec:
      project: default
      source:
-       repoURL: https://github.com/<YOUR_USERNAME>/Flagship-Platform.git
+       repoURL: https://github.com/barbaria888/FrugalZeus.git
        targetRevision: main
        path: platform-gitops/tenants/team-beta
      destination:
