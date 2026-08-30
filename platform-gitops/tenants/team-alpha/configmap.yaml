@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: team-alpha-config
+  namespace: tenant-team-alpha
+data:
+  AWS_ENDPOINT_URL: "http://floci.platform-infra.svc.cluster.local:4566"
+  S3_BUCKET: "team-alpha-data"

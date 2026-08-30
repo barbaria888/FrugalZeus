@@ -1,0 +1,22 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: floci
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/<YOUR_USERNAME>/Flagship-Platform.git
+    targetRevision: main
+    path: platform-gitops/infrastructure-manifests/floci
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: platform-infra
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

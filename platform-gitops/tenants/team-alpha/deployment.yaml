@@ -1,0 +1,69 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: team-alpha-svc
+  namespace: tenant-team-alpha
+  labels:
+    app: team-alpha-svc
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: team-alpha-svc
+  template:
+    metadata:
+      labels:
+        app: team-alpha-svc
+        platform.io/tenant: "true"
+    spec:
+      containers:
+        - name: microservice
+          image: hardik0811/frugalzeus:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+              name: http
+            - containerPort: 9464
+              name: metrics
+          env:
+            # --- App Config ---
+            - name: AWS_ENDPOINT_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: team-alpha-config
+                  key: AWS_ENDPOINT_URL
+            - name: S3_BUCKET
+              valueFrom:
+                configMapKeyRef:
+                  name: team-alpha-config
+                  key: S3_BUCKET
+            # --- OTel Config (single framework for metrics + traces) ---
+            - name: OTEL_SERVICE_NAME
+              value: "team-alpha-svc"
+            - name: OTEL_TRACES_EXPORTER
+              value: "otlp"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://tempo.monitoring.svc.cluster.local:4318"
+            - name: OTEL_METRICS_EXPORTER
+              value: "prometheus"
+            - name: OTEL_EXPORTER_PROMETHEUS_HOST
+              value: "0.0.0.0"
+            - name: OTEL_EXPORTER_PROMETHEUS_PORT
+              value: "9464"
+            - name: OTEL_LOGS_EXPORTER
+              value: "none"
+            - name: OTEL_PYTHON_FASTAPI_EXCLUDED_URLS
+              value: "health,metrics"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 5

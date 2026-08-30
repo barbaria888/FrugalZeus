@@ -1,0 +1,12 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: tenant-metrics
+spec:
+  selector:
+    matchLabels:
+      platform.io/tenant: "true"
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 30s
