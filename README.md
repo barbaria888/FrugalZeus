@@ -41,6 +41,8 @@
 <summary><strong>App-of-Apps Topology (click to expand)</strong></summary>
 <br/>
 
+ <img src="https://github.com/barbaria888/FrugalZeus/blob/main/images/Architecture.png" />
+ 
 ```mermaid
 graph TB
     subgraph "Control Plane (k3s / Kubernetes Node)"
