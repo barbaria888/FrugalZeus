@@ -4,15 +4,15 @@
 
 ## Cloud-Native Engineering  Platform 
 
-<img src="https://argo-cd.readthedocs.io/en/stable/assets/argo.png" alt="Argo CD" width="50"/>  <img  height="70" alt="terraform" src="https://github.com/user-attachments/assets/9b7da754-a646-4f5b-b775-bb750747bd1f" />
-<img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/githubactions/githubactions-original.svg" height="70" alt="GitHub Actions" />&nbsp;
-<img src="https://github.com/homarr-labs/dashboard-icons/blob/main/png/loki.png" width="70"/>
-<img src="https://github.com/homarr-labs/dashboard-icons/blob/main/png/grafana.png" width="70"/>
-<img src="https://github.com/homarr-labs/dashboard-icons/blob/main/png/tempo.png" width="70"/>
-<img src="https://github.com/homarr-labs/dashboard-icons/blob/main/png/prometheus.png" width="70"/>
-<img src="https://github.com/barbaria888/Otel-Jaegar/blob/main/images/OpenTelemetry.png" height="80">
-<img src="https://github.com/homarr-labs/dashboard-icons/blob/main/png/opencost.png" width="70"/>
-<img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/kubernetes/kubernetes-plain-wordmark.svg" height="90" alt="Kubernetes" /> 
+<img src="https://argo-cd.readthedocs.io/en/stable/assets/argo.png" alt="Argo CD" width="50"/>  <img  height="50" alt="terraform" src="https://github.com/user-attachments/assets/9b7da754-a646-4f5b-b775-bb750747bd1f" />
+<img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/githubactions/githubactions-original.svg" height="50" alt="GitHub Actions" />&nbsp;
+<img src="https://github.com/homarr-labs/dashboard-icons/blob/main/png/loki.png" width="50"/>
+<img src="https://github.com/homarr-labs/dashboard-icons/blob/main/png/grafana.png" width="50"/>
+<img src="https://github.com/homarr-labs/dashboard-icons/blob/main/png/tempo.png" width="50"/>
+<img src="https://github.com/homarr-labs/dashboard-icons/blob/main/png/prometheus.png" width="50"/>
+<img src="https://github.com/barbaria888/Otel-Jaegar/blob/main/images/OpenTelemetry.png" height="50">
+<img src="https://github.com/homarr-labs/dashboard-icons/blob/main/png/opencost.png" width="50"/>
+<img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/kubernetes/kubernetes-plain-wordmark.svg" height="60" alt="Kubernetes" /> 
 </div>
 
 **FrugalZeus** is a sovereign, zero-idle-waste Internal Developer Platform (IDP) . It demonstrates an end-to-end GitOps delivery pipeline, localized cloud IaC emulation, unified OpenTelemetry observability, and granular sub-namespace FinOps cost attribution—all orchestrated on any Kubernetes Cluster
