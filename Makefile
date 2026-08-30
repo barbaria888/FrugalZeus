@@ -1,4 +1,4 @@
-.PHONY: bootstrap ports status password test observe sync-wait clean help
+.PHONY: bootstrap ports status password test observe nodeports sync-wait clean help
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*##' $(MAKEFILE_LIST) | sort | \
@@ -34,37 +34,50 @@ status: ## Show platform health: nodes, Argo CD applications, and pod statuses
 	@echo "=== 4. Platform Services ==="
 	@kubectl get svc -n monitoring -n argocd -n opencost -n tenant-guestbook 2>/dev/null || true
 
-observe: ## Print all observability URLs (requires 'make ports' to be running)
+observe: ## Print all NodePort and port-forward endpoints with credentials
+	@NODE_IP=$$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}' 2>/dev/null || echo 'YOUR-VM-IP'); \
+	ARGO_PASS=$$(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" 2>/dev/null | base64 -d 2>/dev/null || echo "run: make password"); \
+	echo ""; \
+	echo "═══════════════════════════════════════════════════════════════"; \
+	echo "           FrugalZeus Platform Endpoints"; \
+	echo "═══════════════════════════════════════════════════════════════"; \
+	echo ""; \
+	echo "  NodePort Access (direct, from the VM or host — no port-forward):"; \
+	echo "  ┌──────────────┬─────────────────────────────────────────────┐"; \
+	echo "  │ Grafana      │ http://$$NODE_IP:30000  (admin/platform-admin)│"; \
+	echo "  │ Argo CD      │ http://$$NODE_IP:30080  (admin/$$ARGO_PASS)"; \
+	echo "  │ Guestbook    │ http://$$NODE_IP:30800                       │"; \
+	echo "  │ OpenCost     │ http://$$NODE_IP:30903                       │"; \
+	echo "  └──────────────┴─────────────────────────────────────────────┘"; \
+	echo ""; \
+	echo "  Localhost Access (via 'make ports' port-forwards):"; \
+	echo "  ┌──────────────┬─────────────────────────────────────────────┐"; \
+	echo "  │ Grafana      │ http://localhost:3000   (admin/platform-admin)│"; \
+	echo "  │ Argo CD      │ http://localhost:8080   (admin/$$ARGO_PASS)"; \
+	echo "  │ Guestbook    │ http://localhost:8000                        │"; \
+	echo "  │ OpenCost     │ http://localhost:9003                        │"; \
+	echo "  └──────────────┴─────────────────────────────────────────────┘"; \
+	echo ""; \
+	echo "  Grafana Datasources (pre-wired, no manual setup):"; \
+	echo "    Prometheus  -> metrics (ServiceMonitor scraping)"; \
+	echo "    Loki        -> logs    (Promtail container collection)"; \
+	echo "    Tempo       -> traces  (OTLP from instrumented apps)"; \
+	echo ""; \
+	echo "═══════════════════════════════════════════════════════════════"
+
+nodeports: ## Show live NodePort status for all platform services
+	@echo "=== NodePort Services ==="
 	@echo ""
-	@echo "FrugalZeus Observability Endpoints"
-	@echo "==================================="
-	@echo ""
-	@echo "  Grafana (Metrics, Logs, Traces)"
-	@echo "    http://localhost:3000"
-	@echo "    Login: admin / platform-admin"
-	@echo ""
-	@echo "  Pre-configured Dashboards:"
-	@echo "    Kubernetes / Compute Resources / Namespace"
-	@echo "    Kubernetes / Compute Resources / Pod"
-	@echo "    Node Exporter / Full"
-	@echo ""
-	@echo "  Pre-wired Datasources:"
-	@echo "    Prometheus  -> metrics scraping from all platform.io/tenant=true services"
-	@echo "    Loki        -> logs from all pods via Promtail"
-	@echo "    Tempo       -> distributed traces from OTLP-instrumented services"
-	@echo ""
-	@echo "  OpenCost (FinOps)"
-	@echo "    http://localhost:9003"
-	@echo "    Namespace cost breakdown: tenant-guestbook, monitoring, opencost"
-	@echo ""
-	@echo "  Argo CD (GitOps)"
-	@echo "    http://localhost:8080"
-	@PASS=$$(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" 2>/dev/null | base64 -d 2>/dev/null || echo "see 'make password'"); \
-	echo "    Login: admin / $$PASS"
-	@echo ""
-	@echo "  Guestbook App"
-	@echo "    http://localhost:8000"
-	@echo ""
+	@NODE_IP=$$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}' 2>/dev/null || echo 'UNKNOWN'); \
+	echo "Node IP: $$NODE_IP"; echo ""; \
+	echo "Grafana (30000):"; \
+	kubectl get svc -n monitoring -l app.kubernetes.io/name=grafana -o jsonpath='  {.items[0].spec.type} -> {.items[0].spec.ports[0].nodePort}{"\n"}' 2>/dev/null || echo "  NOT SYNCED"; \
+	echo "Argo CD (30080):"; \
+	kubectl get svc argocd-server -n argocd -o jsonpath='  {.spec.type} -> {.spec.ports[0].nodePort}{"\n"}' 2>/dev/null || echo "  NOT FOUND"; \
+	echo "Guestbook (30800):"; \
+	kubectl get svc guestbook-ui-nodeport -n tenant-guestbook -o jsonpath='  {.spec.type} -> {.spec.ports[0].nodePort}{"\n"}' 2>/dev/null || echo "  NOT SYNCED"; \
+	echo "OpenCost (30903):"; \
+	kubectl get svc -n opencost -l app.kubernetes.io/name=opencost -o jsonpath='  {.items[0].spec.type} -> {.items[0].spec.ports[0].nodePort}{"\n"}' 2>/dev/null || echo "  NOT SYNCED"
 
 test: ## Smoke test guestbook and platform observability endpoints (requires 'make ports')
 	@echo "=== Testing Guestbook App ==="

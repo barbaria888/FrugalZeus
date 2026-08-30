@@ -1,0 +1,26 @@
+# This application deploys a NodePort Service for guestbook-ui into the tenant-guestbook namespace.
+# The guestbook-demo app (from argoproj/argocd-example-apps) creates a ClusterIP/LoadBalancer service;
+# this supplementary manifest exposes it directly on NodePort 30800 for platform-level access.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: guestbook-nodeport
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "6"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/barbaria888/FrugalZeus.git
+    targetRevision: main
+    path: platform-gitops/tenants/guestbook-overlay
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: tenant-guestbook
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

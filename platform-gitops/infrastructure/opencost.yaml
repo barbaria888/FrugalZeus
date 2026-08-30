@@ -22,6 +22,9 @@ spec:
               port: 9090
           ui:
             enabled: true
+            service:
+              type: NodePort
+              nodePort: 30903
   destination:
     server: https://kubernetes.default.svc
     namespace: opencost

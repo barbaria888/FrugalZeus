@@ -28,6 +28,9 @@ spec:
 
         grafana:
           adminPassword: "platform-admin"
+          service:
+            type: NodePort
+            nodePort: 30000
           sidecar:
             dashboards:
               enabled: true
