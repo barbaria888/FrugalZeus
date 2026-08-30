@@ -1,122 +1,186 @@
-# Tenant Onboarding Contract
+# Golden Path Tenant Onboarding
 
-This document defines the automated procedure for provisioning a new tenant environment. The platform enforces a declarative, GitOps-driven onboarding flow that guarantees security compliance, automated service discovery, and immediate observability coverage.
+This document provides the definitive guide for onboarding new engineering teams and microservices onto the **FrugalZeus** platform. The process follows a strict GitOps contract powered by Argo CD **ApplicationSets** and immutable **Kustomize** overlays.
 
 ---
 
-## Pre-requisites: Run the Platform Bootstrap
+## Onboarding Architecture
 
-Before any tenant can be observed, the platform infrastructure stack must be fully synced via Argo CD:
+When onboarding a new tenant (e.g., `team-beta`), platform engineers do not manually execute `kubectl apply` commands. Instead, committing a tenant directory to Git automatically triggers the full provisioning lifecycle.
 
-```bash
-# 1. Bootstrap the cluster and install all infrastructure
-make bootstrap
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Dev as Tenant Engineer
+    participant Git as Git Repository
+    participant AppSet as ApplicationSet Controller
+    participant Argo as Argo CD Engine
+    participant K8s as Kubernetes Cluster
+    participant Obs as LGTM & OpenCost
 
-# 2. Wait for ALL Argo CD applications to reach Synced + Healthy state
-make sync-wait
-
-# 3. Open all verified local port-forwards
-make ports
-
-# 4. Print all observability endpoints and credentials
-make observe
+    Dev->>Git: Push platform-gitops/tenants/team-beta/
+    Git->>AppSet: Git Generator detects new directory
+    AppSet->>Argo: Generates Application "tenant-team-beta"
+    Argo->>K8s: Provisions Namespace, Quota, LimitRange, NetworkPolicy
+    Argo->>K8s: Deploys Workloads (Deployment, Service, ConfigMap)
+    K8s->>Obs: ServiceMonitor registers with Prometheus
+    K8s->>Obs: Promtail collects logs -> Loki
+    K8s->>Obs: OpenCost tracks namespace spend
+    Dev->>Dev: Service is live, secured, and fully observed!
 ```
 
-After `make ports`, the following platform services are accessible:
+---
 
-| Service | Local URL | Credentials |
+## The Tenant Baseline Overlay (`tenants/base/`)
+
+Every tenant inherits foundational security and operational guardrails from `platform-gitops/tenants/base/`:
+
+| Guardrail Manifest | Enforcement Mechanism | Purpose |
 | :--- | :--- | :--- |
-| **Grafana** | http://localhost:3000 | `admin` / `platform-admin` |
-| **Argo CD** | http://localhost:8080 | `admin` / `<make password>` |
-| **Guestbook App** | http://localhost:8000 | — |
-| **OpenCost** | http://localhost:9003 | — |
+| `namespace.yaml` | `platform.io/tenant: "true"` label | Enables automated scraping and tenant filtering. |
+| `resource-quota.yaml` | CPU (1-2 Cores), RAM (1-2 GiB), Pods (10) | Prevents runaway costs and cluster starvation. |
+| `limit-range.yaml` | Default requests & limits per container | Guarantees predictable scheduling for unconfigured pods. |
+| `network-policy.yaml` | Default-deny with explicit ingress/egress rules | Prevents lateral cross-tenant communication. |
+| `service-monitor.yaml` | Scrapes port `metrics` every 15s | Automatic Prometheus integration without config files. |
 
 ---
 
-## Grafana: Pre-wired Observability Stack
+## Step-by-Step Onboarding Walkthrough
 
-The `kube-prometheus-stack` Helm deployment provisions Grafana with **three datasources pre-configured** by Helm sidecar injection. No manual wiring required after sync.
+Follow these steps to instantiate a new tenant environment (e.g. `team-beta`):
 
-### Datasources
-
-| Datasource | Type | Source | Purpose |
-| :--- | :--- | :--- | :--- |
-| **Prometheus** | `prometheus` | `kube-prometheus-stack` | Metrics from all `ServiceMonitor`-discovered pods |
-| **Loki** | `loki` | `http://loki.monitoring.svc.cluster.local:3100` | Container logs shipped by Promtail |
-| **Tempo** | `tempo` | `http://tempo.monitoring.svc.cluster.local:3100` | Distributed traces via OTLP |
-
-### How Logs, Metrics, and Traces Flow
-
-```
-Tenant Pods
-  ├── OTLP Traces  -->  Tempo   --> Grafana (Explore > Tempo)
-  ├── /metrics     -->  Prometheus via ServiceMonitor  --> Grafana (Dashboards)
-  └── stdout/stderr --> Promtail --> Loki --> Grafana (Explore > Loki)
-```
-
-For any namespace with `platform.io/tenant: "true"` labels, the base `ServiceMonitor` in `platform-gitops/tenants/base/service-monitor.yaml` automatically scrapes pods exposing a `metrics` port.
-
----
-
-## Guestbook Demo Application
-
-The platform hosts the canonical Argo CD **guestbook** reference application as the primary tenant demonstration workload.
-
-```
-Argo CD App:   guestbook-demo
-Namespace:     tenant-guestbook
-Source:        https://github.com/argoproj/argocd-example-apps.git / path: guestbook
-Sync Policy:   Automated (prune + selfHeal)
-```
-
-This app syncs at **Sync Wave 5**, after all infrastructure (Prometheus, Loki, Tempo, OpenCost) is healthy.
-
----
-
-## Onboarding a New Tenant
-
-### 1. Copy the Tenant Baseline
+### 1. Copy the Verified Tenant Template
 
 ```bash
 cp -r platform-gitops/tenants/team-alpha platform-gitops/tenants/team-beta
 ```
 
-### 2. Configure Tenant Metadata
+### 2. Configure Tenant Overlays
 
 Edit `platform-gitops/tenants/team-beta/kustomization.yaml`:
 
 ```yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
 namespace: tenant-team-beta
+
+resources:
+  - ../base
+  - deployment.yaml
+  - service.yaml
+  - configmap.yaml
+
 commonLabels:
   team: beta
   platform.io/tenant: "true"
 ```
 
-### 3. Automatic Discovery via ApplicationSet
+### 3. Customize Application Workload
 
-The `tenant-applications` ApplicationSet (in `platform-gitops/infrastructure/tenants-applicationset.yaml`) scans all directories under `platform-gitops/tenants/` (excluding `base`) and automatically generates Argo CD Applications for each.
+Update `platform-gitops/tenants/team-beta/deployment.yaml` with your container image and OTel configuration:
 
-**No manual Argo CD Application file is required.** Simply commit the tenant directory and push.
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: team-beta-svc
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: team-beta-svc
+  template:
+    metadata:
+      labels:
+        app: team-beta-svc
+        platform.io/tenant: "true"
+    spec:
+      containers:
+        - name: microservice
+          image: your-org/team-beta-svc:latest
+          ports:
+            - containerPort: 8000
+              name: http
+            - containerPort: 9464
+              name: metrics
+          env:
+            - name: OTEL_SERVICE_NAME
+              value: "team-beta-svc"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://tempo.monitoring.svc.cluster.local:4318"
+```
 
-### 4. Commit and Push
+### 4. Dynamic Discovery via ApplicationSet
+
+The platform's `tenant-applications` ApplicationSet (`platform-gitops/infrastructure/tenants-applicationset.yaml`) uses a Git directory generator to discover the new tenant automatically:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: tenant-applications
+  namespace: argocd
+spec:
+  generators:
+    - git:
+        repoURL: https://github.com/barbaria888/FrugalZeus.git
+        revision: main
+        directories:
+          - path: platform-gitops/tenants/*
+          - path: platform-gitops/tenants/base
+            exclude: true
+  template:
+    metadata:
+      name: 'tenant-{{path.basename}}'
+      namespace: argocd
+    spec:
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: 'tenant-{{path.basename}}'
+```
+
+### 5. Commit & Reconcile
 
 ```bash
 git add platform-gitops/tenants/team-beta/
-git commit -m "feat(platform): provision tenant-team-beta environment"
-git push
+git commit -m "feat(tenants): onboard team-beta microservice"
+git push origin main
 ```
 
-**Expected Outcome**: The ApplicationSet controller creates a `tenant-team-beta` Argo CD Application, which provisions the namespace, enforces `NetworkPolicy`, `ResourceQuota`, `LimitRange`, and `ServiceMonitor` from the base overlay — automatically.
+---
 
-### 5. Verify Tenant is Synced and Observable
+## Day-2 Tenant Verification
 
-```bash
-make sync-wait       # Wait for tenant app to go Healthy
-make observe         # Print all endpoint URLs
-```
+Once committed, verify that the new tenant is fully operational across all platform pillars:
 
-Open Grafana at `http://localhost:3000`:
-- **Explore > Loki**: Query `{namespace="tenant-team-beta"}` for container logs
-- **Explore > Tempo**: Search for traces if the workload is OTel-instrumented
-- **Dashboards > Kubernetes / Compute Resources / Namespace**: Select `tenant-team-beta` for CPU/memory
-- **OpenCost** at `http://localhost:9003`: Cost breakdown by namespace
+=== "1. Check GitOps Health"
+    ```bash
+    make sync-wait
+    # Verify 'tenant-team-beta' application is Synced & Healthy
+    ```
+
+=== "2. Verify Metrics in Grafana"
+    1. Navigate to Grafana at `http://<NODE-IP>:30000` (or `http://localhost:3000`).
+    2. Open **Dashboards > Kubernetes / Compute Resources / Namespace**.
+    3. Select `tenant-team-beta` from the dropdown.
+
+=== "3. Check Logs in Loki"
+    1. In Grafana, navigate to **Explore > Loki**.
+    2. Run query: `{namespace="tenant-team-beta"}`.
+
+=== "4. Inspect Cost in OpenCost"
+    1. Open OpenCost at `http://<NODE-IP>:30903` (or `http://localhost:9003`).
+    2. Select **Cost Allocation** and group by `Namespace`.
+    3. Confirm `tenant-team-beta` appears with real-time hourly cost attribution.
+
+---
+
+## Troubleshooting Guide
+
+| Issue | Root Cause | Remediation |
+| :--- | :--- | :--- |
+| **Argo CD App Not Generated** | Missing or misnamed directory in Git. | Ensure directory matches `platform-gitops/tenants/<tenant-name>` and changes are pushed to `main`. |
+| **Pod in `CrashLoopBackOff`** | Memory limit exceeded. | Check `ResourceQuota` / `LimitRange` allocations with `kubectl describe quota -n <namespace>`. |
+| **Prometheus Not Scraping** | Missing label or port name. | Verify Service has label `platform.io/tenant: "true"` and port is named `metrics`. |
+| **Traces Not Appearing in Tempo** | Incorrect OTLP endpoint. | Ensure `OTEL_EXPORTER_OTLP_ENDPOINT` is set to `http://tempo.monitoring.svc.cluster.local:4318`. |
+| **Network Egress Blocked** | Destination outside NetworkPolicy. | Inspect `platform-gitops/tenants/base/network-policy.yaml` to ensure required egress CIDRs or namespaces are whitelisted. |

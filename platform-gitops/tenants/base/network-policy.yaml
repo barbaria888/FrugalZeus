@@ -20,6 +20,16 @@ spec:
       ports:
         - protocol: TCP
           port: 9464
+    # kubectl port-forward and API server ingress (kube-system)
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+    # Ingress from argocd for health checks
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: argocd
 
   egress:
     # DNS (CoreDNS in kube-system)
@@ -32,6 +42,14 @@ spec:
           port: 53
         - protocol: TCP
           port: 53
+    # Kubernetes API server (default namespace) — required for ServiceAccount API calls
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: default
+      ports:
+        - protocol: TCP
+          port: 443
     # Floci S3 (platform-infra)
     - to:
         - namespaceSelector:
@@ -51,3 +69,16 @@ spec:
     # Intra-namespace
     - to:
         - podSelector: {}
+    # External internet (image pulls, git, any outbound)
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+      ports:
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 80

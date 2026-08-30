@@ -1,4 +1,4 @@
-.PHONY: bootstrap apply-apps ports status password test observe nodeports sync-wait clean help
+.PHONY: bootstrap apply-apps patch-nodeports ports status password test observe nodeports sync-wait clean help
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*##' $(MAKEFILE_LIST) | sort | \
@@ -10,12 +10,33 @@ bootstrap: ## Full platform setup: Cluster -> Argo CD -> GitOps -> Floci -> Terr
 apply-apps: ## Apply GitOps root app + all infrastructure Application manifests to Argo CD
 	@echo "Applying Argo CD root application..."
 	kubectl apply -f platform-gitops/root-app.yaml
-	@echo "Applying all infrastructure Argo CD Application manifests..."
-	kubectl apply -n argocd -f platform-gitops/infrastructure/
+	@echo "Applying all infrastructure Argo CD Application manifests (server-side)..."
+	kubectl apply --server-side --force-conflicts -n argocd -f platform-gitops/infrastructure/
 	@echo ""
-	@echo "✓ Applications submitted. Argo CD will now begin syncing in wave order."
-	@echo "  Run 'make sync-wait' to wait for all apps to reach Healthy state."
-	@echo "  Run 'make status' to watch progress."
+	@echo "✓ Applications submitted. Run 'make sync-wait' to wait for Healthy state."
+
+patch-nodeports: ## Force-patch all services to NodePort (run after 'make sync-wait')
+	@echo "=== Patching Services to NodePort ==="
+	@echo ""
+	@echo "Patching Argo CD server -> NodePort 30080..."
+	@kubectl patch svc argocd-server -n argocd -p '{"spec":{"type":"NodePort","ports":[{"name":"http","port":80,"targetPort":8080,"nodePort":30080},{"name":"https","port":443,"targetPort":8080,"nodePort":30443}]}}' 2>/dev/null && echo "  ✓ Argo CD: 30080" || echo "  ✗ argocd-server not found"
+	@echo ""
+	@echo "Patching Grafana -> NodePort 30000..."
+	@GRAFANA_SVC=$$(kubectl get svc -n monitoring -l "app.kubernetes.io/name=grafana" -o jsonpath='{.items[0].metadata.name}' 2>/dev/null); \
+	if [ -n "$$GRAFANA_SVC" ]; then \
+		kubectl patch svc "$$GRAFANA_SVC" -n monitoring -p '{"spec":{"type":"NodePort","ports":[{"port":80,"targetPort":3000,"nodePort":30000}]}}' && echo "  ✓ Grafana: 30000"; \
+	else echo "  ✗ Grafana service not found (still syncing?)"; fi
+	@echo ""
+	@echo "Patching OpenCost -> NodePort 30903..."
+	@OC_SVC=$$(kubectl get svc -n opencost -l "app.kubernetes.io/name=opencost" -o jsonpath='{.items[0].metadata.name}' 2>/dev/null); \
+	if [ -n "$$OC_SVC" ]; then \
+		kubectl patch svc "$$OC_SVC" -n opencost -p '{"spec":{"type":"NodePort","ports":[{"port":9003,"targetPort":9003,"nodePort":30903}]}}' && echo "  ✓ OpenCost: 30903"; \
+	else echo "  ✗ OpenCost service not found (still syncing?)"; fi
+	@echo ""
+	@echo "Checking guestbook-ui-nodeport service (created by Argo CD guestbook-nodeport app)..."
+	@kubectl get svc guestbook-ui-nodeport -n tenant-guestbook 2>/dev/null && echo "  ✓ Guestbook NodePort 30800 exists" || echo "  ✗ guestbook-ui-nodeport not found (check guestbook-nodeport Argo CD app)"
+	@echo ""
+	@make nodeports
 
 sync-wait: ## Wait for all Argo CD apps to reach Synced+Healthy (up to 10 min)
 	@echo "Current Argo CD application state:"

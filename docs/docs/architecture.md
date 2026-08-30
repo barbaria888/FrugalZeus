@@ -1,30 +1,165 @@
-# Architecture & Technical Design Decisions
+# Architecture & Technical Design
 
-This document details the core architectural tenets and the rationale behind the platform's engineering design.
+This document details the architectural blueprints, control-plane topology, and technical design decisions governing the **FrugalZeus** platform.
 
+---
 
-## Key Architectural Principles
+## High-Level Topology
 
-### 1. Deterministic GitOps Reconciliation
-We utilize **Argo CD** employing the **App-of-Apps** pattern. State reconciliation is strictly ordered using `sync-waves` (`argocd.argoproj.io/sync-wave`). 
-- **Waves 1-4**: Infrastructure capabilities (Floci, Prometheus, Loki, Tempo, OpenCost) are prioritized.
-- **Wave 5+**: Tenant workloads are applied only after foundational dependencies achieve a `Healthy` state.
-- **Server-Side Apply**: `ServerSideApply=true` is enforced across complex manifests (e.g., `kube-prometheus-stack` CRDs) to bypass client-side annotation payload limits.
+The platform enforces strict separation of concerns across the Kubernetes control plane, shared infrastructure capabilities, and autonomous tenant boundaries.
 
-### 2. Zero-Cost Emulation Layer
-**Floci** operates as an in-cluster AWS emulator. 
-- **Rationale**: Isolates development and CI environments from cloud provider unreliability and eliminates transient costs associated with integration testing.
-- **Implementation**: Applications utilize standard AWS SDKs pointed at the internal Floci service endpoint. Terraform orchestrates simulated infrastructure (e.g., S3 buckets) directly against this emulator during the bootstrap phase.
+```mermaid
+graph TB
+    subgraph "Cluster Control Plane (k3s / K8s)"
+        API["kube-apiserver"]
+        ArgoCD["Argo CD Controller"]
+        AppSet["ApplicationSet Controller"]
+    end
 
-### 3. OpenTelemetry Standardization
-The platform mandates a single instrumentation layer.
-- **Auto-Instrumentation**: Applications are instrumented utilizing `opentelemetry-instrument`, abstracting telemetry generation from business logic.
-- **Topology**: OTel exports Prometheus metrics via port `9464` and OTLP distributed traces to Tempo via port `4318`. Grafana provides the unified visualization layer for correlation.
+    subgraph "Platform Infrastructure (Namespace: platform-infra)"
+        Floci["Floci (AWS S3/IAM Emulator)"]
+        TF["Terraform State / S3 Buckets"]
+    end
 
-### 4. Zero-Trust Multi-Tenancy
-Tenant namespaces operate under enforced least-privilege guardrails, injected via Kustomize base overlays.
-- **ResourceQuotas & LimitRanges**: Prevent noisy-neighbor scenarios by capping compute and memory consumption at the namespace level.
-- **NetworkPolicies**: Default-deny ingress/egress configurations ensure lateral movement between tenant boundaries is strictly prohibited unless explicitly authorized.
+    subgraph "Telemetry Core (Namespace: monitoring)"
+        Prom["Prometheus TSDB"]
+        Loki["Grafana Loki"]
+        Tempo["Grafana Tempo"]
+        Grafana["Grafana Portal"]
+        Promtail["Promtail DaemonSet"]
+    end
 
-### 5. NodePort Ingress Strategy
-For local development and constrained environment topologies, core services are exposed directly via defined `NodePort` interfaces, bypassing complex dynamic Ingress controllers while maintaining predictable endpoint accessibility (`30000` for Grafana, `30080` for Argo CD, etc.).
+    subgraph "Cost Governance (Namespace: opencost)"
+        OpenCost["OpenCost Engine"]
+    end
+
+    subgraph "Tenant Workload (Namespace: tenant-guestbook / tenant-*)"
+        Workload["Workload Pods (FastAPI / Guestbook)"]
+        OTel["OpenTelemetry Instrumentation"]
+        Guardrails["NetworkPolicy · ResourceQuota · LimitRange"]
+    end
+
+    %% State Management
+    ArgoCD -->|"Reconciles State"| Floci
+    ArgoCD -->|"Reconciles State"| Prom
+    ArgoCD -->|"Reconciles State"| Loki
+    ArgoCD -->|"Reconciles State"| Tempo
+    ArgoCD -->|"Reconciles State"| OpenCost
+    AppSet -->|"Discovers & Deploys"| Workload
+
+    %% Telemetry & Data Flow
+    Workload -->|"OTLP Traces :4318"| Tempo
+    Workload -->|"Scrapes /metrics :9464"| Prom
+    Promtail -->|"Container Logs"| Loki
+    OpenCost -->|"PromQL Queries :9090"| Prom
+    Grafana -->|"Queries"| Prom & Loki & Tempo
+
+    %% Local Emulation
+    Workload -->|"AWS SDK S3 Calls :4566"| Floci
+```
+
+---
+
+## Declarative GitOps Architecture
+
+FrugalZeus implements a **Two-Tier App-of-Apps and ApplicationSet** delivery model.
+
+### 1. The App-of-Apps Pattern (`platform-root`)
+The root application (`platform-gitops/root-app.yaml`) watches the repository's `platform-gitops/infrastructure/` directory. When applied, Argo CD cascades reconciliation across all shared infrastructure components.
+
+```mermaid
+flowchart TD
+    Root["platform-root (Root Application)"]
+    
+    Root --> Wave1["Wave 1: Cloud Emulation (Floci)"]
+    Root --> Wave2["Wave 2: Monitoring Core (Prometheus & Grafana)"]
+    Root --> Wave3["Wave 3: Telemetry Backends (Loki & Tempo)"]
+    Root --> Wave4["Wave 4: FinOps Engine (OpenCost)"]
+    Root --> Wave5["Wave 5: Tenant Applications & ApplicationSets"]
+```
+
+### 2. Deterministic Sync-Waves
+To prevent race conditions during cold cluster boots, resources are ordered using the `argocd.argoproj.io/sync-wave` annotation:
+
+| Sync Wave | Applications | Purpose & Dependencies |
+| :--- | :--- | :--- |
+| **Wave 1** | `floci` | In-cluster AWS mocking layer; must be healthy before Terraform applies bucket configurations. |
+| **Wave 2** | `kube-prometheus-stack` | Installs Prometheus CRDs (`ServiceMonitor`, `PrometheusRule`) and starts Grafana. |
+| **Wave 3** | `loki`, `tempo` | High-scale log and trace ingestors connected to the monitoring network. |
+| **Wave 4** | `opencost` | Cost engine depending on Prometheus TSDB scraping endpoints. |
+| **Wave 5** | `guestbook-demo`, `tenant-applications` | Dynamic ApplicationSet generator and tenant microservices. |
+| **Wave 6** | `guestbook-nodeport` | Supplementary access overlays for external access. |
+
+!!! tip "Server-Side Apply"
+    Complex Helm charts such as `kube-prometheus-stack` contain Custom Resource Definitions (CRDs) whose schema annotations exceed the standard `kubectl.kubernetes.io/last-applied-configuration` limit (262,144 bytes). FrugalZeus enforces `ServerSideApply=true` on all Argo CD application specs to prevent deployment failures.
+
+---
+
+## Multi-Tenancy & Zero-Trust Isolation
+
+Tenant isolation is implemented through immutable Kustomize overlays stamped out from `platform-gitops/tenants/base/`.
+
+```mermaid
+graph LR
+    subgraph "Tenant Isolation Boundary"
+        direction TB
+        NP["NetworkPolicy<br/>(Default-Deny Ingress/Egress)"]
+        RQ["ResourceQuota<br/>(Hard Compute Caps)"]
+        LR["LimitRange<br/>(Default Pod Limits)"]
+        SM["ServiceMonitor<br/>(Automated Discovery)"]
+    end
+
+    TenantPod["Tenant Pod"] --- NP
+    TenantPod --- RQ
+    TenantPod --- LR
+    TenantPod --- SM
+```
+
+### 1. Network Microsegmentation
+The platform applies a default-restricted `NetworkPolicy` to every tenant namespace:
+- **Allowed Ingress**: Intra-namespace traffic, Prometheus scraper (port `9464`), and local port-forwarding proxies from `kube-system`.
+- **Allowed Egress**: CoreDNS (`kube-system:53`), Kubernetes API (`default:443`), Floci S3 emulator (`platform-infra:4566`), and Tempo OTLP gateway (`monitoring:4318`).
+- **Blocked**: Direct cross-tenant pod-to-pod communication is denied at the CNI layer.
+
+### 2. Noisy-Neighbor Mitigation
+- **ResourceQuotas**: Enforce maximum CPU (1-2 Cores), Memory (1-2 GiB), and Pod count (10 Pods) per namespace.
+- **LimitRanges**: Automatically inject default request/limit values on pods lacking explicit declarations, ensuring predictable scheduling.
+
+---
+
+## Service Exposure Architecture
+
+FrugalZeus supports both remote/VM access via **NodePorts** and local developer forwarding via **`make ports`**.
+
+```mermaid
+flowchart LR
+    subgraph "Host / Remote Client"
+        Browser["Web Browser / Client"]
+    end
+
+    subgraph "Service Layer"
+        NP1["NodePort :30000"] --> Grafana["Grafana (:80)"]
+        NP2["NodePort :30080"] --> ArgoCD["Argo CD (:80)"]
+        NP3["NodePort :30800"] --> Guestbook["Guestbook (:80)"]
+        NP4["NodePort :30903"] --> OpenCost["OpenCost (:9003)"]
+    end
+
+    Browser -->|"Direct VM Access"| NP1 & NP2 & NP3 & NP4
+    Browser -->|"make ports (Localhost)"| Grafana & ArgoCD & Guestbook & OpenCost
+```
+
+| Component | Target Namespace | Target Port | Assigned NodePort | Localhost Forward |
+| :--- | :--- | :--- | :--- | :--- |
+| **Grafana** | `monitoring` | `80` (HTTP) | `30000` | `http://localhost:3000` |
+| **Argo CD** | `argocd` | `80` (Insecure HTTP) | `30080` | `http://localhost:8080` |
+| **Tenant App** | `tenant-guestbook` | `80` (HTTP) | `30800` | `http://localhost:8000` |
+| **OpenCost** | `opencost` | `9003` (HTTP) | `30903` | `http://localhost:9003` |
+
+---
+
+## Local Cloud Emulation (Floci)
+
+Rather than maintaining costly external AWS resources or running heavyweight alternatives like LocalStack, FrugalZeus integrates **Floci**:
+1. Microservices communicate with standard AWS SDKs using `AWS_ENDPOINT_URL=http://floci.platform-infra.svc.cluster.local:4566`.
+2. Terraform manifests (`terraform/`) run against Floci during `make bootstrap` to provision buckets and IAM roles idempotently.
+3. Completely sovereign: operates seamlessly in air-gapped environments or without internet access.
