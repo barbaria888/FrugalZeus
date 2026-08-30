@@ -17,6 +17,9 @@
 
 **FrugalZeus** is a sovereign, zero-idle-waste Internal Developer Platform (IDP) . It demonstrates an end-to-end GitOps delivery pipeline, localized cloud IaC emulation, unified OpenTelemetry observability, and granular sub-namespace FinOps cost attribution—all orchestrated on any Kubernetes Cluster
 
+[![Build & Deploy Microservice](https://github.com/barbaria888/FrugalZeus/actions/workflows/ci-build-push.yml/badge.svg)](https://github.com/barbaria888/FrugalZeus/actions/workflows/ci-build-push.yml)
+[![Deploy Documentation](https://github.com/barbaria888/FrugalZeus/actions/workflows/docs-deploy.yml/badge.svg)](https://github.com/barbaria888/FrugalZeus/actions/workflows/docs-deploy.yml)
+
 ---
 
 ## Architecture Topology
