@@ -6,14 +6,20 @@ This document details the architectural blueprints, control-plane topology, and 
 
 ## High-Level Topology
 
-The platform enforces strict separation of concerns across the Kubernetes control plane, shared infrastructure capabilities, and autonomous tenant boundaries.
+The platform enforces strict separation of concerns across the Kubernetes control plane, developer config-driven application layer, shared infrastructure capabilities, and autonomous tenant boundaries.
 
 ```mermaid
 graph TB
+    subgraph "Developer Abstraction Layer (apps/)"
+        DevConfig["apps/<name>/config.yaml"]
+        MakeCLI["Makefile CLI (make deploy)"]
+    end
+
     subgraph "Cluster Control Plane (k3s / K8s)"
         API["kube-apiserver"]
         ArgoCD["Argo CD Controller"]
-        AppSet["ApplicationSet Controller"]
+        MatrixAppSet["apps-from-config ApplicationSet"]
+        TenantAppSet["tenant-applications ApplicationSet"]
     end
 
     subgraph "Platform Infrastructure (Namespace: platform-infra)"
@@ -33,11 +39,15 @@ graph TB
         OpenCost["OpenCost Engine"]
     end
 
-    subgraph "Tenant Workload (Namespace: tenant-guestbook / tenant-*)"
-        Workload["Workload Pods (FastAPI / Guestbook)"]
+    subgraph "Tenant Multi-Env Workloads (Namespace: tenant-<app>-<env>)"
+        Workload["Multi-Env App Pods (guestbook, online-boutique)"]
         OTel["OpenTelemetry Instrumentation"]
         Guardrails["NetworkPolicy · ResourceQuota · LimitRange"]
     end
+
+    %% Developer Flow
+    DevConfig --> MakeCLI
+    MakeCLI -->|"Pushes GitOps Config"| MatrixAppSet
 
     %% State Management
     ArgoCD -->|"Reconciles State"| Floci
@@ -45,7 +55,8 @@ graph TB
     ArgoCD -->|"Reconciles State"| Loki
     ArgoCD -->|"Reconciles State"| Tempo
     ArgoCD -->|"Reconciles State"| OpenCost
-    AppSet -->|"Discovers & Deploys"| Workload
+    MatrixAppSet -->|"Generates test/stage/prod Apps"| Workload
+    TenantAppSet -->|"Discovers & Deploys"| Workload
 
     %% Telemetry & Data Flow
     Workload -->|"OTLP Traces :4318"| Tempo
@@ -65,7 +76,7 @@ graph TB
 FrugalZeus implements a **Two-Tier App-of-Apps and ApplicationSet** delivery model.
 
 ### 1. The App-of-Apps Pattern (`platform-root`)
-The root application (`platform-gitops/root-app.yaml`) watches the repository's `platform-gitops/infrastructure/` directory. When applied, Argo CD cascades reconciliation across all shared infrastructure components.
+The root application (`platform-gitops/root-app.yaml`) watches the repository's `platform-gitops/infrastructure/` directory. When applied, Argo CD cascades reconciliation across all shared infrastructure components, including the developer ApplicationSet.
 
 ```mermaid
 flowchart TD
@@ -75,10 +86,66 @@ flowchart TD
     Root --> Wave2["Wave 2: Monitoring Core (Prometheus & Grafana)"]
     Root --> Wave3["Wave 3: Telemetry Backends (Loki & Tempo)"]
     Root --> Wave4["Wave 4: FinOps Engine (OpenCost)"]
-    Root --> Wave5["Wave 5: Tenant Applications & ApplicationSets"]
+    Root --> Wave5["Wave 5: Config-Driven ApplicationSet (apps-from-config) & Tenants"]
+    Root --> Wave6["Wave 6: NodePort Exposure Supplements"]
 ```
 
-### 2. Deterministic Sync-Waves
+### 2. Matrix ApplicationSet Generator (`apps-from-config.yaml`)
+
+To shield developers from Argo CD internal manifests, the platform provides an **ApplicationSet Matrix Generator**:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: apps-from-config
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+spec:
+  goTemplate: true
+  generators:
+    - matrix:
+        generators:
+          - git:
+              repoURL: https://github.com/barbaria888/FrugalZeus.git
+              revision: main
+              files:
+                - path: "apps/*/config.yaml"
+          - list:
+              elements:
+                - env: test
+                - env: stage
+                - env: prod
+  template:
+    metadata:
+      name: "{{ .name }}-{{ .env }}"
+      namespace: argocd
+      labels:
+        platform.io/app: "{{ .name }}"
+        platform.io/env: "{{ .env }}"
+        platform.io/team: "{{ .team }}"
+      annotations:
+        argocd.argoproj.io/sync-wave: "5"
+    spec:
+      project: default
+      source:
+        repoURL: "{{ .source.repoURL }}"
+        targetRevision: "{{ .source.targetRevision }}"
+        path: "{{ .source.path }}"
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: "tenant-{{ .name }}-{{ .env }}"
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true
+```
+
+### 3. Deterministic Sync-Waves
 To prevent race conditions during cold cluster boots, resources are ordered using the `argocd.argoproj.io/sync-wave` annotation:
 
 | Sync Wave | Applications | Purpose & Dependencies |
@@ -87,8 +154,8 @@ To prevent race conditions during cold cluster boots, resources are ordered usin
 | **Wave 2** | `kube-prometheus-stack` | Installs Prometheus CRDs (`ServiceMonitor`, `PrometheusRule`) and starts Grafana. |
 | **Wave 3** | `loki`, `tempo` | High-scale log and trace ingestors connected to the monitoring network. |
 | **Wave 4** | `opencost` | Cost engine depending on Prometheus TSDB scraping endpoints. |
-| **Wave 5** | `guestbook-demo`, `tenant-applications` | Dynamic ApplicationSet generator and tenant microservices. |
-| **Wave 6** | `guestbook-nodeport` | Supplementary access overlays for external access. |
+| **Wave 5** | `apps-from-config`, `tenant-applications` | Dynamic ApplicationSet matrix generator and tenant microservices. |
+| **Wave 6** | `guestbook-nodeport` | Supplementary access overlays for external NodePort access. |
 
 !!! tip "Server-Side Apply"
     Complex Helm charts such as `kube-prometheus-stack` contain Custom Resource Definitions (CRDs) whose schema annotations exceed the standard `kubectl.kubernetes.io/last-applied-configuration` limit (262,144 bytes). FrugalZeus enforces `ServerSideApply=true` on all Argo CD application specs to prevent deployment failures.
@@ -97,7 +164,7 @@ To prevent race conditions during cold cluster boots, resources are ordered usin
 
 ## Multi-Tenancy & Zero-Trust Isolation
 
-Tenant isolation is implemented through immutable Kustomize overlays stamped out from `platform-gitops/tenants/base/`.
+Tenant isolation is implemented through immutable Kustomize overlays stamped out from `platform-gitops/tenants/base/` across all generated environment namespaces (`tenant-<app>-<env>`).
 
 ```mermaid
 graph LR

@@ -1,0 +1,157 @@
+[33mcommit 4d3f871fc29ac872c995fcdb33f4610337f3f90e[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m
+Author: barbaria888 <hardik.arora_cs22@gla.ac.in>
+Date:   Sun Aug 30 23:55:19 2026 +0530
+
+    feat: declarative nodeport architecture, enhanced docs and IDP layout
+
+[33mcommit d27de001c85f2c427f28ea4d483e8216f161875d[m
+Merge: 51b5e14 a81c394
+Author: barbaria888 <hardik.arora_cs22@gla.ac.in>
+Date:   Sun Aug 30 23:53:19 2026 +0530
+
+    Merge branch 'main' of https://github.com/barbaria888/FrugalZeus
+
+[33mcommit 51b5e14013222a493ecc211880d05d9fe65499a4[m
+Author: barbaria888 <hardik.arora_cs22@gla.ac.in>
+Date:   Sun Aug 30 23:53:10 2026 +0530
+
+    declarative nodeport
+
+[33mcommit a81c394f8645bafdb4d18df37646ffd0c6fa1bae[m
+Author: Hardik Arora <arorahardik0811@gmail.com>
+Date:   Sun Aug 30 23:49:51 2026 +0530
+
+    Update README.md
+
+[33mcommit f9791365608ae3731c104cbf55362f4a37753f84[m
+Author: Hardik Arora <arorahardik0811@gmail.com>
+Date:   Sun Aug 30 23:48:19 2026 +0530
+
+    Update README.md
+
+[33mcommit 3fc913fe0c70b135e846e194d743476612431289[m
+Author: Hardik Arora <arorahardik0811@gmail.com>
+Date:   Sun Aug 30 23:44:39 2026 +0530
+
+    Update README.md
+
+[33mcommit f84d5122110a3afbb3d37235cc654c78e756f5ca[m
+Author: barbaria888 <hardik.arora_cs22@gla.ac.in>
+Date:   Sun Aug 30 23:42:26 2026 +0530
+
+    images
+
+[33mcommit da9672b9e52bf029d0504ab9d398c72aea4d0ac1[m
+Merge: 6931c8b 8630434
+Author: barbaria888 <hardik.arora_cs22@gla.ac.in>
+Date:   Sun Aug 30 23:20:53 2026 +0530
+
+    Merge branch 'main' of https://github.com/barbaria888/FrugalZeus
+
+[33mcommit 6931c8bbf09ae11680d9a19e21960edd93ad9aa1[m
+Author: barbaria888 <hardik.arora_cs22@gla.ac.in>
+Date:   Sun Aug 30 23:20:42 2026 +0530
+
+    image change
+
+[33mcommit 8630434f9750979ae580db0c46c79a423fdb5da3[m
+Author: Hardik Arora <arorahardik0811@gmail.com>
+Date:   Sun Aug 30 23:16:05 2026 +0530
+
+    Update README.md
+
+[33mcommit 0455027413eeb0d9009fe31de63edf30a6ca2ead[m
+Author: barbaria888 <hardik.arora_cs22@gla.ac.in>
+Date:   Sun Aug 30 23:13:46 2026 +0530
+
+    improved docs and makefile
+
+[33mcommit c45ee9a438f9e543ecd90227e9a2f991b7902cb1[m
+Author: barbaria888 <hardik.arora_cs22@gla.ac.in>
+Date:   Sun Aug 30 22:44:45 2026 +0530
+
+    argocd apps root-app deployment
+
+[33mcommit 0e97a943ad24bfdfbfb35087f6b6dee4299adff9[m
+Author: barbaria888 <hardik.arora_cs22@gla.ac.in>
+Date:   Sun Aug 30 22:35:21 2026 +0530
+
+    nodeport problem solved
+
+[33mcommit cd2fbc6e609b6477393926a8087fb605d8736671[m
+Author: Hardik Arora <arorahardik0811@gmail.com>
+Date:   Sun Aug 30 22:26:58 2026 +0530
+
+    Update README.md
+
+[33mcommit 1f22309e2c5d485a7b7f752991468a55e206eae8[m
+Author: barbaria888 <hardik.arora_cs22@gla.ac.in>
+Date:   Sun Aug 30 22:24:00 2026 +0530
+
+    bug fixes and demo app deployment
+
+[33mcommit 422dcad1935bb391580cd5ff00732609cc481bc9[m
+Author: Hardik Arora <arorahardik0811@gmail.com>
+Date:   Sun Aug 30 21:51:55 2026 +0530
+
+    Update README.md
+
+[33mcommit df4a1c0e2b54633193ed2a6518e2020cd3599d0e[m
+Author: Hardik Arora <arorahardik0811@gmail.com>
+Date:   Sun Aug 30 21:47:56 2026 +0530
+
+    Update README.md
+
+[33mcommit dbc2bfdf86c8919b3345992bde05793d9876c169[m
+Author: Hardik Arora <arorahardik0811@gmail.com>
+Date:   Sun Aug 30 21:43:44 2026 +0530
+
+    Update README.md
+
+[33mcommit d2654714cc409f62ff44193b9ac6169f44fbd7ce[m
+Author: Hardik Arora <arorahardik0811@gmail.com>
+Date:   Sun Aug 30 21:27:16 2026 +0530
+
+    Update README.md
+
+[33mcommit dff2a78286044b5f5a31e0d12e96b120034fa400[m
+Author: Hardik Arora <arorahardik0811@gmail.com>
+Date:   Sun Aug 30 21:24:55 2026 +0530
+
+    Update mkdocs.yml
+
+[33mcommit 473b5a95b60d2ab4aeec1b7c9b4e61f56a51fa3f[m
+Author: Hardik Arora <arorahardik0811@gmail.com>
+Date:   Sun Aug 30 21:20:11 2026 +0530
+
+    Update mkdocs.yml
+
+[33mcommit fa780f1e8cfa46d5f952749542156cb0fefa9ddc[m
+Author: Hardik Arora <arorahardik0811@gmail.com>
+Date:   Sun Aug 30 21:10:56 2026 +0530
+
+    Update architecture.md
+
+[33mcommit 1f963e3f3474b3bb045cbcedecfc3fdb495f0a8a[m
+Author: Hardik Arora <arorahardik0811@gmail.com>
+Date:   Sun Aug 30 21:09:52 2026 +0530
+
+    Update docs-deploy.yml
+
+[33mcommit a64783e155d6f2e8534499bc8bc521e1b30dbc01[m
+Author: barbaria888 <hardik.arora_cs22@gla.ac.in>
+Date:   Sun Aug 30 18:17:32 2026 +0530
+
+    some deployment and doc changes
+
+[33mcommit c26d09c33b8f81407b318f3bfefcfc23abbc8523[m
+Author: barbaria888 <hardik.arora_cs22@gla.ac.in>
+Date:   Sun Aug 30 17:04:51 2026 +0530
+
+    chore: replace repoURL and username placeholders
+
+[33mcommit 769cc0f77f0cebac2371eb974eeaabc0df2628a9[m
+Author: barbaria888 <hardik.arora_cs22@gla.ac.in>
+Date:   Sun Aug 30 17:02:58 2026 +0530
+
+    initial commit

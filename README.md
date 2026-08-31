@@ -18,7 +18,7 @@
 
 ---
 
-**FrugalZeus** is a sovereign, zero-idle-waste **Internal Developer Platform (IDP)** reference architecture. It demonstrates an end-to-end GitOps delivery pipeline, localized cloud IaC emulation, unified OpenTelemetry observability, and granular FinOps cost attribution — all orchestrated on any Self-Hosted, Managed (GKE, AKS, EKS) Kubernetes cluster, or simply a k3s/kind cluster on a local VM.
+**FrugalZeus** is a sovereign, zero-idle-waste **Internal Developer Platform (IDP)** reference architecture. It features a **config-driven multi-environment application deployment system** (`test` / `stage` / `prod`), an end-to-end GitOps delivery pipeline, localized cloud IaC emulation, unified OpenTelemetry observability, and granular FinOps cost attribution — all orchestrated on any Self-Hosted, Managed (GKE, AKS, EKS) Kubernetes cluster, or simply a k3s/kind cluster on a local VM.
 
 > **Lightweight** and **frugal** for pure signal. Built for Platform Architects and Engineering Teams.
 
@@ -39,7 +39,9 @@
 
 | Capability | Component | Design Decision |
 | :--- | :--- | :--- |
-| **GitOps** | **Argo CD** | App-of-Apps with `sync-waves` — infra first, tenants last |
+| **Config-Driven Apps** | **`apps/*/config.yaml`** | Single config file per app; zero Argo CD / Kustomize internal authoring required by devs |
+| **Multi-Env GitOps** | **Matrix ApplicationSet** | Combines Git file generator × environment list to auto-generate `test`, `stage`, and `prod` apps |
+| **GitOps Engine** | **Argo CD** | App-of-Apps with `sync-waves` — infra first, tenant applications last |
 | **Orchestration** | **k3s / Kubernetes** | Minimal-footprint distribution; no control-plane bloat |
 | **Cloud Emulation** | **Floci** | In-cluster AWS API emulator — zero-cost S3/IaC testing |
 | **Observability** | **LGTM Stack** | OpenTelemetry → Prometheus + Loki + Tempo, unified in Grafana |
@@ -82,6 +84,19 @@ make observe
 
 ## 🛠 Developer Operations
 
+### Application Operations (Config-Driven GitOps)
+
+```bash
+make apps                          # List all onboarded developer application configs
+make validate-app APP=guestbook    # Validate apps/guestbook/config.yaml using yq
+make deploy APP=guestbook          # Validate, git commit, and push config to trigger GitOps
+make status-app APP=guestbook      # Check Argo CD sync status across test/stage/prod
+make promote APP=guestbook         # Print guidance for environment promotion
+make destroy APP=guestbook         # Delete application config and trigger Argo CD pruning
+```
+
+### Platform & Infrastructure Operations
+
 ```bash
 make help             # All available targets
 make bootstrap        # Full setup: cluster → Argo CD → GitOps → Floci → Terraform
@@ -103,19 +118,22 @@ make clean            # Destroy local k3s cluster
 
 ```text
 FrugalZeus/
+├── apps/                         # ← Developer applications (config.yaml per app)
+│   ├── guestbook/                # Guestbook multi-environment config
+│   └── online-boutique/          # Online Boutique multi-environment config
 ├── k3s/                          # Bootstrap script (k3s provisioning + Argo CD setup)
-├── scripts/                      # Platform utilities (port-forward, etc.)
+├── scripts/                      # Platform scripts (validate-app-config.sh, port-forward.sh)
 ├── terraform/                    # IaC definitions targeting Floci (AWS emulator)
 ├── microservice/                 # FastAPI app — OTel instrumented (metrics + traces)
 ├── platform-gitops/
 │   ├── root-app.yaml             # Argo CD App-of-Apps entry point
-│   ├── infrastructure/           # Helm Application manifests (monitoring, opencost, etc.)
+│   ├── infrastructure/           # Application manifests & ApplicationSets (apps-from-config.yaml)
 │   └── tenants/
 │       ├── base/                 # Shared guardrails: NetworkPolicy, Quota, LimitRange, ServiceMonitor
 │       ├── team-alpha/           # Example tenant overlay
 │       └── guestbook-overlay/    # NodePort supplement for guestbook demo app
 ├── docs/                         # MkDocs platform documentation
-└── Makefile                      # All developer operations
+└── Makefile                      # All developer & platform operations
 ```
 
 ---
@@ -129,4 +147,4 @@ Full platform documentation is available at the [GitHub Pages site](https://barb
 | [Architecture](docs/docs/architecture.md) | Design decisions, sync-waves, OTel, and tenancy model |
 | [Observability](docs/docs/observability.md) | LGTM stack — Prometheus, Loki, Tempo, Grafana correlation |
 | [FinOps](docs/docs/finops.md) | OpenCost cost attribution and showback model |
-| [Tenant Onboarding](docs/docs/onboarding.md) | Add a new team in < 5 minutes via GitOps |
+| [Tenant Onboarding](docs/docs/onboarding.md) | Config-driven app deployment & team onboarding in < 5 minutes |

@@ -6,15 +6,22 @@ Welcome to the **FrugalZeus** Internal Developer Platform (IDP) technical docume
 
 ## Executive Summary
 
-Modern enterprise engineering platforms often introduce excessive cloud provider dependencies, runaway compute costs, and fractured developer workflows. **FrugalZeus** solves this by packaging an end-to-end, production-parity platform into a lightweight, declarative footprint that can run on any Kubernetes cluster or a single Linux virtual machine.
+Modern enterprise engineering platforms often introduce excessive cloud provider dependencies, runaway compute costs, and fractured developer workflows. **FrugalZeus** solves this by offering a **config-driven multi-environment deployment system** (`test` / `stage` / `prod`) paired with an end-to-end, declarative platform footprint that runs on any Kubernetes cluster or a single Linux virtual machine.
+
+Developers never touch Argo CD Applications, ApplicationSets, or Kustomize internals — they edit a single `config.yaml` inside `apps/<name>/` and run simple `make` commands.
 
 ```mermaid
 mindmap
   root((FrugalZeus IDP))
+    Config-Driven DevX
+      Single config.yaml Per App
+      Multi-Env Auto Generation
+      CLI Validation & Deployment
+      Zero K8s Manifest Friction
     GitOps Control Plane
       Argo CD Engine
       App-of-Apps Pattern
-      ApplicationSet Dynamic Discovery
+      Matrix ApplicationSet Generator
       Sync-Wave Orchestration
     Cloud Emulation
       Floci AWS Mocking
@@ -43,6 +50,9 @@ mindmap
 
 ## Core Value Propositions
 
+=== "Config-Driven DevX"
+    Developers edit a single `config.yaml` inside `apps/<name>/` and run `make deploy APP=<name>`. An Argo CD Matrix ApplicationSet automatically creates and reconciles `test`, `stage`, and `prod` environments without developers touching complex Kubernetes or GitOps internals.
+
 === "Zero-Idle Waste"
     By utilizing in-cluster cloud emulation (**Floci**) and high-efficiency distributions (**k3s**), platform teams can validate complex Infrastructure-as-Code (Terraform), distributed tracing, and multi-tenant isolation without incurring cloud vendor bills or running heavyweight managed control planes.
 
@@ -53,7 +63,7 @@ mindmap
     No fragmented monitoring tools. All metrics, logs, and distributed traces flow through **OpenTelemetry** into Prometheus, Loki, and Tempo, deeply cross-correlated inside unified **Grafana** dashboards.
 
 === "Granular FinOps"
-    Integrated **OpenCost** maps real-time CPU and memory resource consumption directly to tenant namespaces, enabling automated showback and preventing noisy-neighbor budget overruns.
+    Integrated **OpenCost** maps real-time CPU and memory resource consumption directly to tenant namespaces (`tenant-<app>-<env>`), enabling automated showback and preventing noisy-neighbor budget overruns.
 
 ---
 
@@ -61,6 +71,8 @@ mindmap
 
 | Capability Pillar | Underlying Technology | Operational Role |
 | :--- | :--- | :--- |
+| **Developer Experience** | `apps/*/config.yaml` + `yq` Validator | Simple config-driven application onboarding & environment definitions. |
+| **GitOps Matrix Engine** | Argo CD ApplicationSet | Matrix generator combining Git config files with environment lists (`test`/`stage`/`prod`). |
 | **Orchestration** | Kubernetes / k3s | CNCF-conformant runtime with standard API surface. |
 | **Continuous Delivery** | Argo CD | Declarative state engine leveraging App-of-Apps & ApplicationSets. |
 | **Cloud Emulation** | Floci (AWS Mock) | In-cluster emulation for S3, SQS, and IAM testing without AWS accounts. |
@@ -80,11 +92,11 @@ mindmap
 
 -   :material-sitemap: **[Platform Architecture](architecture.md)**
     ---
-    Explore the App-of-Apps hierarchy, sync-wave sequences, and security boundaries.
+    Explore the App-of-Apps hierarchy, Matrix ApplicationSet, sync-wave sequences, and security boundaries.
 
--   :material-account-plus: **[Tenant Onboarding](onboarding.md)**
+-   :material-account-plus: **[Application & Tenant Onboarding](onboarding.md)**
     ---
-    Learn how development teams stamp out new environments via GitOps in minutes.
+    Learn how development teams deploy multi-environment apps via `config.yaml` and `make` commands in minutes.
 
 -   :material-chart-timeline-variant: **[Unified Observability](observability.md)**
     ---
@@ -106,4 +118,4 @@ To instantiate the complete FrugalZeus platform locally or in CI/CD:
 - **Memory**: Minimum 4 GB RAM (8 GB recommended for full LGTM stack)
 - **Disk**: 20 GB available storage
 - **Operating System**: Linux (Ubuntu 22.04+, Debian 12+, RHEL 9+) or WSL2
-- **Tools**: `kubectl`, `make`, `curl`, `git`
+- **Tools**: `kubectl`, `make`, `curl`, `git`, `yq` (or `python`)

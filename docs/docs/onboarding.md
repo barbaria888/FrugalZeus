@@ -1,177 +1,258 @@
-# Golden Path Tenant Onboarding
+# Application & Tenant Onboarding
 
-This document provides the definitive guide for onboarding new engineering teams and microservices onto the **FrugalZeus** platform. The process follows a strict GitOps contract powered by Argo CD **ApplicationSets** and immutable **Kustomize** overlays.
+This document provides the definitive guide for onboarding new engineering teams, microservices, and applications onto the **FrugalZeus** platform.
+
+The platform provides a **simple, developer-friendly, config-driven multi-environment application deployment system** (`test` / `stage` / `prod`). Developers **never** touch Argo CD Application manifests, ApplicationSets, Kustomize bases, or GitOps internals. They only edit a single `config.yaml` inside `apps/<name>/` and run standard `make` commands.
 
 ---
 
-## Onboarding Architecture
-
-When onboarding a new tenant (e.g., `team-beta`), platform engineers do not manually execute `kubectl apply` commands. Instead, committing a tenant directory to Git automatically triggers the full provisioning lifecycle.
+## Developer Onboarding Architecture
 
 ```mermaid
 sequenceDiagram
     autonumber
-    actor Dev as Tenant Engineer
+    actor Dev as Developer / Team
+    participant Config as apps/<name>/config.yaml
+    participant Make as Makefile / Validator
     participant Git as Git Repository
-    participant AppSet as ApplicationSet Controller
-    participant Argo as Argo CD Engine
+    participant AppSet as Argo CD Matrix ApplicationSet
     participant K8s as Kubernetes Cluster
-    participant Obs as LGTM & OpenCost
 
-    Dev->>Git: Push platform-gitops/tenants/team-beta/
-    Git->>AppSet: Git Generator detects new directory
-    AppSet->>Argo: Generates Application "tenant-team-beta"
-    Argo->>K8s: Provisions Namespace, Quota, LimitRange, NetworkPolicy
-    Argo->>K8s: Deploys Workloads (Deployment, Service, ConfigMap)
-    K8s->>Obs: ServiceMonitor registers with Prometheus
-    K8s->>Obs: Promtail collects logs -> Loki
-    K8s->>Obs: OpenCost tracks namespace spend
-    Dev->>Dev: Service is live, secured, and fully observed!
+    Dev->>Config: Create / Edit config.yaml
+    Dev->>Make: make validate-app APP=<name>
+    Make->>Config: Runs validate-app-config.sh (yq / python)
+    Dev->>Make: make deploy APP=<name>
+    Make->>Git: git add + commit + push
+    Git->>AppSet: Matrix Generator reads apps/*/config.yaml
+    AppSet->>K8s: Provisions tenant-<name>-test, stage, prod
+    Dev->>Make: make status-app APP=<name>
 ```
 
 ---
 
-## The Tenant Baseline Overlay (`tenants/base/`)
+##  Quick-Start: Onboard a Microservice in 4 Steps
 
-Every tenant inherits foundational security and operational guardrails from `platform-gitops/tenants/base/`:
+Follow these minimal, clear steps (inspired by Google's microservices demo guidelines) to deploy your service across `test`, `stage`, and `prod` environments.
 
-| Guardrail Manifest | Enforcement Mechanism | Purpose |
-| :--- | :--- | :--- |
-| `namespace.yaml` | `platform.io/tenant: "true"` label | Enables automated scraping and tenant filtering. |
-| `resource-quota.yaml` | CPU (1-2 Cores), RAM (1-2 GiB), Pods (10) | Prevents runaway costs and cluster starvation. |
-| `limit-range.yaml` | Default requests & limits per container | Guarantees predictable scheduling for unconfigured pods. |
-| `network-policy.yaml` | Default-deny with explicit ingress/egress rules | Prevents lateral cross-tenant communication. |
-| `service-monitor.yaml` | Scrapes port `metrics` every 15s | Automatic Prometheus integration without config files. |
+### 1. Create a Directory for Your App
 
----
-
-## Step-by-Step Onboarding Walkthrough
-
-Follow these steps to instantiate a new tenant environment (e.g. `team-beta`):
-
-### 1. Copy the Verified Tenant Template
+Create a directory named after your application inside the `apps/` root directory:
 
 ```bash
-cp -r platform-gitops/tenants/team-alpha platform-gitops/tenants/team-beta
+mkdir -p apps/my-service
 ```
 
-### 2. Configure Tenant Overlays
+### 2. Create `config.yaml`
 
-Edit `platform-gitops/tenants/team-beta/kustomization.yaml`:
+Create `apps/my-service/config.yaml` defining your repository source and environments:
 
 ```yaml
-apiVersion: kustomize.config.k8s.io/v1beta1
-kind: Kustomization
-namespace: tenant-team-beta
+name: my-service
+team: checkout-squad
 
-resources:
-  - ../base
-  - deployment.yaml
-  - service.yaml
-  - configmap.yaml
+source:
+  repoURL: https://github.com/my-org/my-service.git
+  path: deploy/k8s
+  targetRevision: main
 
-commonLabels:
-  team: beta
-  platform.io/tenant: "true"
+environments:
+  test:
+    enabled: true
+    replicas: 1
+  stage:
+    enabled: true
+    replicas: 2
+  prod:
+    enabled: true
+    replicas: 3
 ```
 
-### 3. Customize Application Workload
+### 3. Validate Configuration
 
-Update `platform-gitops/tenants/team-beta/deployment.yaml` with your container image and OTel configuration:
+Run the local validation script via `make`:
+
+```bash
+make validate-app APP=my-service
+```
+
+*Output:*
+```text
+Validating application config: apps/my-service/config.yaml
+  [OK] App name: my-service
+  [OK] Source repo: https://github.com/my-org/my-service.git
+  [OK] Source path: deploy/k8s
+  [OK] Enabled environments found: 3 (test, stage, prod)
+[OK] Validation passed for apps/my-service/config.yaml
+```
+
+### 4. Deploy via GitOps
+
+Commit and push your application configuration to trigger Argo CD dynamic provisioning:
+
+```bash
+make deploy APP=my-service
+```
+
+Argo CD's `apps-from-config` ApplicationSet automatically generates three environment Applications in isolated namespaces:
+- `tenant-my-service-test`
+- `tenant-my-service-stage`
+- `tenant-my-service-prod`
+
+---
+
+## Application Operations & Lifecycle Commands
+
+| Target | Command | Description |
+| :--- | :--- | :--- |
+| **List Apps** | `make apps` | Lists all onboarded application configs under `apps/` |
+| **Validate** | `make validate-app APP=<name>` | Validates YAML fields (`.name`, `.source.repoURL`, `.source.path`, `.environments`) |
+| **Deploy** | `make deploy APP=<name>` | Validates, commits, and pushes app config to trigger GitOps sync |
+| **Promote** | `make promote APP=<name> FROM=test TO=prod` | Displays environment promotion guidance and steps |
+| **Status** | `make status-app APP=<name>` | Checks Argo CD sync state across `test`, `stage`, and `prod` |
+| **Destroy** | `make destroy APP=<name>` | Deletes app directory from Git; Argo CD automatically prunes cluster resources |
+
+---
+
+## Production-Ready Application Config Examples
+
+### Example 1: `guestbook` (`apps/guestbook/config.yaml`)
 
 ```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: team-beta-svc
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: team-beta-svc
-  template:
-    metadata:
-      labels:
-        app: team-beta-svc
-        platform.io/tenant: "true"
-    spec:
-      containers:
-        - name: microservice
-          image: your-org/team-beta-svc:latest
-          ports:
-            - containerPort: 8000
-              name: http
-            - containerPort: 9464
-              name: metrics
-          env:
-            - name: OTEL_SERVICE_NAME
-              value: "team-beta-svc"
-            - name: OTEL_EXPORTER_OTLP_ENDPOINT
-              value: "http://tempo.monitoring.svc.cluster.local:4318"
+name: guestbook
+team: platform-demo
+
+source:
+  repoURL: https://github.com/argoproj/argocd-example-apps.git
+  path: guestbook
+  targetRevision: HEAD
+
+environments:
+  test:
+    enabled: true
+    replicas: 1
+  stage:
+    enabled: true
+    replicas: 2
+  prod:
+    enabled: true
+    replicas: 3
 ```
 
-### 4. Dynamic Discovery via ApplicationSet
+### Example 2: `online-boutique` (`apps/online-boutique/config.yaml`)
 
-The platform's `tenant-applications` ApplicationSet (`platform-gitops/infrastructure/tenants-applicationset.yaml`) uses a Git directory generator to discover the new tenant automatically:
+```yaml
+name: online-boutique
+team: platform-demo
+
+source:
+  repoURL: https://github.com/GoogleCloudPlatform/microservices-demo.git
+  path: kustomize
+  targetRevision: main
+
+environments:
+  test:
+    enabled: true
+  stage:
+    enabled: true
+  prod:
+    enabled: true
+```
+
+---
+
+## Under the Hood: Matrix ApplicationSet (`apps-from-config.yaml`)
+
+Platform engineers maintain the underlying Matrix ApplicationSet (`platform-gitops/infrastructure/apps-from-config.yaml`). Developers **never** edit this file.
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
-  name: tenant-applications
+  name: apps-from-config
   namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
 spec:
+  goTemplate: true
   generators:
-    - git:
-        repoURL: https://github.com/barbaria888/FrugalZeus.git
-        revision: main
-        directories:
-          - path: platform-gitops/tenants/*
-          - path: platform-gitops/tenants/base
-            exclude: true
+    - matrix:
+        generators:
+          - git:
+              repoURL: https://github.com/barbaria888/FrugalZeus.git
+              revision: main
+              files:
+                - path: "apps/*/config.yaml"
+          - list:
+              elements:
+                - env: test
+                - env: stage
+                - env: prod
   template:
     metadata:
-      name: 'tenant-{{path.basename}}'
+      name: "{{ .name }}-{{ .env }}"
       namespace: argocd
+      labels:
+        platform.io/app: "{{ .name }}"
+        platform.io/env: "{{ .env }}"
+        platform.io/team: "{{ .team }}"
+      annotations:
+        argocd.argoproj.io/sync-wave: "5"
     spec:
+      project: default
+      source:
+        repoURL: "{{ .source.repoURL }}"
+        targetRevision: "{{ .source.targetRevision }}"
+        path: "{{ .source.path }}"
       destination:
         server: https://kubernetes.default.svc
-        namespace: 'tenant-{{path.basename}}'
-```
-
-### 5. Commit & Reconcile
-
-```bash
-git add platform-gitops/tenants/team-beta/
-git commit -m "feat(tenants): onboard team-beta microservice"
-git push origin main
+        namespace: "tenant-{{ .name }}-{{ .env }}"
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true
 ```
 
 ---
 
-## Day-2 Tenant Verification
+## Tenant Infrastructure Baseline Overlays (`tenants/base/`)
 
-Once committed, verify that the new tenant is fully operational across all platform pillars:
+For advanced platform extensions or custom tenant guardrails, every tenant namespace (`tenant-<name>-<env>`) inherits security and operational guardrails from `platform-gitops/tenants/base/`:
+
+| Guardrail Manifest | Purpose |
+| :--- | :--- |
+| `namespace.yaml` | Applies `platform.io/tenant: "true"` label for platform observability scraping. |
+| `resource-quota.yaml` | Prevents runaway compute costs and cluster starvation. |
+| `limit-range.yaml` | Injects default requests & limits per container. |
+| `network-policy.yaml` | Enforces default-deny microsegmentation with whitelisted telemetry ports. |
+| `service-monitor.yaml` | Automatically scrapes metrics on port `metrics` every 15 seconds. |
+
+---
+
+## Day-2 Verification & Operations
+
+Once deployed via `make deploy APP=<name>`, verify service health:
 
 === "1. Check GitOps Health"
     ```bash
-    make sync-wait
-    # Verify 'tenant-team-beta' application is Synced & Healthy
+    make status-app APP=my-service
     ```
 
 === "2. Verify Metrics in Grafana"
-    1. Navigate to Grafana at `http://<NODE-IP>:30000` (or `http://localhost:3000`).
+    1. Open Grafana at `http://<NODE-IP>:30000` (or `http://localhost:3000`).
     2. Open **Dashboards > Kubernetes / Compute Resources / Namespace**.
-    3. Select `tenant-team-beta` from the dropdown.
+    3. Select `tenant-my-service-test` or `tenant-my-service-prod`.
 
 === "3. Check Logs in Loki"
-    1. In Grafana, navigate to **Explore > Loki**.
-    2. Run query: `{namespace="tenant-team-beta"}`.
+    1. In Grafana, open **Explore > Loki**.
+    2. Run query: `{namespace="tenant-my-service-prod"}`.
 
 === "4. Inspect Cost in OpenCost"
     1. Open OpenCost at `http://<NODE-IP>:30903` (or `http://localhost:9003`).
     2. Select **Cost Allocation** and group by `Namespace`.
-    3. Confirm `tenant-team-beta` appears with real-time hourly cost attribution.
+    3. Confirm `tenant-my-service-prod` appears with real-time cost attribution.
 
 ---
 
@@ -179,8 +260,7 @@ Once committed, verify that the new tenant is fully operational across all platf
 
 | Issue | Root Cause | Remediation |
 | :--- | :--- | :--- |
-| **Argo CD App Not Generated** | Missing or misnamed directory in Git. | Ensure directory matches `platform-gitops/tenants/<tenant-name>` and changes are pushed to `main`. |
-| **Pod in `CrashLoopBackOff`** | Memory limit exceeded. | Check `ResourceQuota` / `LimitRange` allocations with `kubectl describe quota -n <namespace>`. |
-| **Prometheus Not Scraping** | Missing label or port name. | Verify Service has label `platform.io/tenant: "true"` and port is named `metrics`. |
-| **Traces Not Appearing in Tempo** | Incorrect OTLP endpoint. | Ensure `OTEL_EXPORTER_OTLP_ENDPOINT` is set to `http://tempo.monitoring.svc.cluster.local:4318`. |
-| **Network Egress Blocked** | Destination outside NetworkPolicy. | Inspect `platform-gitops/tenants/base/network-policy.yaml` to ensure required egress CIDRs or namespaces are whitelisted. |
+| **Validation Failed: `.name` missing** | `config.yaml` is missing required fields. | Ensure `.name`, `.source.repoURL`, `.source.path`, and `.environments` are present. |
+| **Argo CD App Not Generated** | Config not committed or pushed to `main`. | Run `make deploy APP=<name>` to commit and push changes. |
+| **`yq` Not Found Error** | `yq` CLI binary not installed locally. | Install `yq` or fallback to `python` (which auto-validates PyYAML). |
+| **Pod in `CrashLoopBackOff`** | Memory/CPU limits exceeded. | Inspect pod logs and adjust `ResourceQuota` / container requests. |

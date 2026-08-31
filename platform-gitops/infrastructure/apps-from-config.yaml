@@ -1,0 +1,48 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: apps-from-config
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+spec:
+  goTemplate: true
+  generators:
+    - matrix:
+        generators:
+          - git:
+              repoURL: https://github.com/barbaria888/FrugalZeus.git
+              revision: main
+              files:
+                - path: "apps/*/config.yaml"
+          - list:
+              elements:
+                - env: test
+                - env: stage
+                - env: prod
+  template:
+    metadata:
+      name: "{{ .name }}-{{ .env }}"
+      namespace: argocd
+      labels:
+        platform.io/app: "{{ .name }}"
+        platform.io/env: "{{ .env }}"
+        platform.io/team: "{{ .team }}"
+      annotations:
+        argocd.argoproj.io/sync-wave: "5"
+    spec:
+      project: default
+      source:
+        repoURL: "{{ .source.repoURL }}"
+        targetRevision: "{{ .source.targetRevision }}"
+        path: "{{ .source.path }}"
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: "tenant-{{ .name }}-{{ .env }}"
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true

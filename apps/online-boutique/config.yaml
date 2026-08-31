@@ -1,0 +1,15 @@
+name: online-boutique
+team: platform-demo
+
+source:
+  repoURL: https://github.com/GoogleCloudPlatform/microservices-demo.git
+  path: kustomize
+  targetRevision: main
+
+environments:
+  test:
+    enabled: true
+  stage:
+    enabled: true
+  prod:
+    enabled: true

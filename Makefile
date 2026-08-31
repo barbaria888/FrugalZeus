@@ -136,3 +136,90 @@ test: ## Smoke test all platform endpoints (requires 'make ports' to be running)
 
 clean: ## Tear down k3s completely (destructive)
 	/usr/local/bin/k3s-uninstall.sh 2>/dev/null || echo "k3s uninstall script not found."
+
+# ==============================================================================
+# Developer Application Management (Config-Driven GitOps)
+# ==============================================================================
+.PHONY: apps validate-app deploy promote status-app destroy
+
+apps: ## List all onboarded developer applications under apps/
+	@echo "=== Onboarded Applications ==="
+	@if [ -d "apps" ] && [ "$$(ls -A apps 2>/dev/null)" ]; then \
+		for d in apps/*/; do \
+			if [ -f "$$d/config.yaml" ]; then \
+				app=$$(basename "$$d"); \
+				echo "  • $$app (apps/$$app/config.yaml)"; \
+			fi; \
+		done; \
+	else \
+		echo "  No apps found under apps/"; \
+	fi
+
+validate-app: ## Validate app config (usage: make validate-app APP=<name>)
+	@if [ -z "$(APP)" ]; then \
+		echo "Error: APP is required. Usage: make validate-app APP=<app-name>"; \
+		exit 1; \
+	fi
+	@bash scripts/validate-app-config.sh apps/$(APP)/config.yaml
+
+deploy: ## Validate, commit, and push an application config to GitOps (usage: make deploy APP=<name>)
+	@if [ -z "$(APP)" ]; then \
+		echo "Error: APP is required. Usage: make deploy APP=<app-name>"; \
+		exit 1; \
+	fi
+	@bash scripts/validate-app-config.sh apps/$(APP)/config.yaml
+	@echo ""
+	@echo "=== Deploying '$(APP)' via GitOps ==="
+	@git add apps/$(APP)/config.yaml
+	@git commit -m "feat(apps): deploy $(APP) config" || echo "No changes to commit."
+	@git push origin main || git push || echo "Note: Push completed or not configured."
+	@echo ""
+	@echo "✓ Deployment submitted for '$(APP)'!"
+	@echo "Next steps:"
+	@echo "  1. Check sync status:     make status-app APP=$(APP)"
+	@echo "  2. View Argo CD UI:       http://localhost:8080 (or run 'make observe')"
+	@echo "  3. Verify endpoints:      make test"
+
+promote: ## Promotion guidance for multi-env apps (usage: make promote APP=<name> FROM=test TO=prod)
+	@if [ -z "$(APP)" ]; then \
+		echo "Error: APP is required. Usage: make promote APP=<app-name> [FROM=test] [TO=prod]"; \
+		exit 1; \
+	fi
+	@FROM_ENV=$${FROM:-test}; \
+	TO_ENV=$${TO:-prod}; \
+	echo "=== Promotion Guidance for '$(APP)' ($$FROM_ENV -> $$TO_ENV) ==="; \
+	echo "In FrugalZeus config-driven GitOps, environments (test/stage/prod) are configured in:"; \
+	echo "  apps/$(APP)/config.yaml"; \
+	echo ""; \
+	echo "To promote changes:"; \
+	echo "  1. Update targetRevision/path/replicas for '$$TO_ENV' in apps/$(APP)/config.yaml"; \
+	echo "  2. Run 'make deploy APP=$(APP)' to commit and trigger Argo CD sync"; \
+	echo "  3. Verify with 'make status-app APP=$(APP)'"
+
+status-app: ## Check Argo CD application status across all environments (usage: make status-app APP=<name>)
+	@if [ -z "$(APP)" ]; then \
+		echo "Error: APP is required. Usage: make status-app APP=<app-name>"; \
+		exit 1; \
+	fi
+	@echo "=== Argo CD Status for '$(APP)' Environments ==="
+	@for env in test stage prod; do \
+		echo "--- Application: $(APP)-$$env (Namespace: tenant-$(APP)-$$env) ---"; \
+		kubectl get application "$(APP)-$$env" -n argocd 2>/dev/null || echo "  Application $(APP)-$$env not found"; \
+	done
+
+destroy: ## Delete an application config and trigger Argo CD pruning (usage: make destroy APP=<name>)
+	@if [ -z "$(APP)" ]; then \
+		echo "Error: APP is required. Usage: make destroy APP=<app-name>"; \
+		exit 1; \
+	fi
+	@if [ ! -d "apps/$(APP)" ]; then \
+		echo "Error: Application directory 'apps/$(APP)' does not exist."; \
+		exit 1; \
+	fi
+	@echo "=== Destroying '$(APP)' ==="
+	@rm -rf "apps/$(APP)"
+	@git add -u "apps/$(APP)" 2>/dev/null || git add "apps/"
+	@git commit -m "chore(apps): destroy $(APP) config" || echo "No changes to commit."
+	@git push origin main || git push || echo "Note: Push completed or not configured."
+	@echo "✓ Application '$(APP)' removed from GitOps repository. Argo CD will prune associated resources."
+
