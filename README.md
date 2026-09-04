@@ -44,6 +44,7 @@
 | **GitOps Engine** | **Argo CD** | App-of-Apps with `sync-waves` — infra first, tenant applications last |
 | **Orchestration** | **k3s / Kubernetes** | Minimal-footprint distribution; no control-plane bloat |
 | **Cloud Emulation** | **Floci** | In-cluster AWS API emulator — zero-cost S3/IaC testing |
+| **Secrets** | **Vault + ESO** | Zero secrets in Git — runtime delivery via Kubernetes auth; `make vault-seed` to write, `make vault-status` to verify |
 | **Observability** | **LGTM Stack** | OpenTelemetry → Prometheus + Loki + Tempo, unified in Grafana |
 | **FinOps** | **OpenCost** | Real-time namespace cost attribution from Prometheus telemetry |
 | **Multi-Tenancy** | **Kustomize** | Immutable base overlays: `NetworkPolicy`, `ResourceQuota`, `LimitRange` |
@@ -99,7 +100,7 @@ make destroy APP=guestbook         # Delete application config and trigger Argo 
 
 ```bash
 make help             # All available targets
-make bootstrap        # Full setup: cluster → Argo CD → GitOps → Floci → Terraform
+make bootstrap        # Full setup: cluster → Argo CD → GitOps → Floci → Vault → Terraform
 make apply-apps       # Apply all Argo CD Application manifests (server-side, safe for CRDs)
 make sync-wait        # Wait for all apps to reach Synced+Healthy (up to 10 min)
 make patch-nodeports  # Force-patch all services to NodePort after sync
@@ -110,6 +111,11 @@ make status           # Cluster health: nodes, apps, pods, services
 make test             # Smoke test all endpoints
 make password         # Get Argo CD admin password
 make clean            # Destroy local k3s cluster
+
+# Secrets (Vault + ESO)
+make vault-init       # One-shot: init Vault, configure k8s auth, seed demo secrets
+make vault-seed KEY=MY_SECRET VALUE=val  # Write/update a secret in Vault
+make vault-status     # Check Vault pod + ExternalSecret sync state
 ```
 
 ---
@@ -122,15 +128,18 @@ FrugalZeus/
 │   ├── guestbook/                # Guestbook multi-environment config
 │   └── online-boutique/          # Online Boutique multi-environment config
 ├── k3s/                          # Bootstrap script (k3s provisioning + Argo CD setup)
-├── scripts/                      # Platform scripts (validate-app-config.sh, port-forward.sh)
+├── scripts/                      # Platform scripts (validate-app-config.sh, port-forward.sh, vault-init.sh)
 ├── terraform/                    # IaC definitions targeting Floci (AWS emulator)
 ├── microservice/                 # FastAPI app — OTel instrumented (metrics + traces)
 ├── platform-gitops/
 │   ├── root-app.yaml             # Argo CD App-of-Apps entry point
-│   ├── infrastructure/           # Application manifests & ApplicationSets (apps-from-config.yaml)
+│   ├── infrastructure/           # Application manifests & ApplicationSets (includes vault.yaml, external-secrets.yaml)
+│   ├── infrastructure-manifests/
+│   │   ├── vault/                # ClusterSecretStore — platform-owned, synced by vault-config ArgoCD app
+│   │   └── ...                   # Other infra manifests (floci, argocd)
 │   └── tenants/
 │       ├── base/                 # Shared guardrails: NetworkPolicy, Quota, LimitRange, ServiceMonitor
-│       ├── team-alpha/           # Example tenant overlay
+│       ├── team-alpha/           # Example tenant overlay (includes external-secret.yaml)
 │       └── guestbook-overlay/    # NodePort supplement for guestbook demo app
 ├── docs/                         # MkDocs platform documentation
 └── Makefile                      # All developer & platform operations

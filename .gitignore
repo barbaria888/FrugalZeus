@@ -1,0 +1,20 @@
+# Vault init output — contains unseal key + root token. NEVER commit.
+vault-init.json
+/tmp/vault-init.json
+
+# Terraform
+.terraform/
+.terraform.lock.hcl
+terraform.tfstate
+terraform.tfstate.backup
+*.tfplan
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo

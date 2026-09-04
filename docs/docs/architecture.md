@@ -10,6 +10,12 @@ The platform enforces strict separation of concerns across the Kubernetes contro
 
 ```mermaid
 graph TB
+    subgraph "Secrets Pipeline (Zero-Trust)"
+        Vault["HashiCorp Vault (KV-v2)"]
+        ESO["External Secrets Operator"]
+        CSS["ClusterSecretStore"]
+    end
+
     subgraph "Developer Abstraction Layer (apps/)"
         DevConfig["apps/<name>/config.yaml"]
         MakeCLI["Makefile CLI (make deploy)"]
@@ -44,6 +50,12 @@ graph TB
         OTel["OpenTelemetry Instrumentation"]
         Guardrails["NetworkPolicy · ResourceQuota · LimitRange"]
     end
+
+    %% Secrets flow
+    Vault -->|"KV-v2 secret values"| ESO
+    CSS -->|"auth/kubernetes role"| Vault
+    ESO -->|"creates k8s Secrets"| Workload
+    ArgoCD -->|"Reconciles State"| ESO
 
     %% Developer Flow
     DevConfig --> MakeCLI
@@ -81,12 +93,12 @@ The root application (`platform-gitops/root-app.yaml`) watches the repository's 
 ```mermaid
 flowchart TD
     Root["platform-root (Root Application)"]
-    
-    Root --> Wave1["Wave 1: Cloud Emulation (Floci)"]
-    Root --> Wave2["Wave 2: Monitoring Core (Prometheus & Grafana)"]
-    Root --> Wave3["Wave 3: Telemetry Backends (Loki & Tempo)"]
+
+    Root --> Wave1["Wave 1: Cloud Emulation (Floci) · Secrets Store (Vault)"]
+    Root --> Wave2["Wave 2: ESO Operator · Monitoring Core (Prometheus & Grafana)"]
+    Root --> Wave3["Wave 3: ClusterSecretStore · Telemetry Backends (Loki & Tempo)"]
     Root --> Wave4["Wave 4: FinOps Engine (OpenCost)"]
-    Root --> Wave5["Wave 5: Config-Driven ApplicationSet (apps-from-config) & Tenants"]
+    Root --> Wave5["Wave 5: Config-Driven ApplicationSet & Tenants (ExternalSecrets synced)"]
     Root --> Wave6["Wave 6: NodePort Exposure Supplements"]
 ```
 
@@ -150,15 +162,55 @@ To prevent race conditions during cold cluster boots, resources are ordered usin
 
 | Sync Wave | Applications | Purpose & Dependencies |
 | :--- | :--- | :--- |
-| **Wave 1** | `floci` | In-cluster AWS mocking layer; must be healthy before Terraform applies bucket configurations. |
-| **Wave 2** | `kube-prometheus-stack` | Installs Prometheus CRDs (`ServiceMonitor`, `PrometheusRule`) and starts Grafana. |
-| **Wave 3** | `loki`, `tempo` | High-scale log and trace ingestors connected to the monitoring network. |
+| **Wave 1** | `floci`, `vault` | Cloud mocking layer + Vault secrets store. Vault must be up before ESO attempts auth. |
+| **Wave 2** | `external-secrets`, `kube-prometheus-stack` | ESO Operator installs CRDs. Prometheus CRDs for `ServiceMonitor`. |
+| **Wave 3** | `vault-config`, `loki`, `tempo` | `ClusterSecretStore` applied after ESO CRDs exist. Log and trace ingestors. |
 | **Wave 4** | `opencost` | Cost engine depending on Prometheus TSDB scraping endpoints. |
-| **Wave 5** | `apps-from-config`, `tenant-applications` | Dynamic ApplicationSet matrix generator and tenant microservices. |
+| **Wave 5** | `apps-from-config`, `tenant-applications` | ExternalSecrets sync from Vault → k8s Secrets created before pods start. |
 | **Wave 6** | `guestbook-nodeport` | Supplementary access overlays for external NodePort access. |
 
 !!! tip "Server-Side Apply"
     Complex Helm charts such as `kube-prometheus-stack` contain Custom Resource Definitions (CRDs) whose schema annotations exceed the standard `kubectl.kubernetes.io/last-applied-configuration` limit (262,144 bytes). FrugalZeus enforces `ServerSideApply=true` on all Argo CD application specs to prevent deployment failures.
+
+---
+
+## Secrets Pipeline (Vault + ESO)
+
+FrugalZeus uses **HashiCorp Vault OSS + External Secrets Operator** to deliver secrets to tenant workloads at runtime. No secret values are ever committed to Git.
+
+```mermaid
+flowchart LR
+    Git["Git Repo\n(ExternalSecret YAML\npath + key only)"] --> ArgoCD
+    ArgoCD -->|sync| ESO["External Secrets\nOperator"]
+    ESO -->|Kubernetes JWT auth| Vault["HashiCorp Vault\n(KV-v2 values)"]
+    Vault -->|secret values| ESO
+    ESO -->|creates| KSecret["k8s Secret\n(team-alpha-secret)"]
+    KSecret -->|secretKeyRef| Pod["Tenant Pod"]
+```
+
+### How it works
+
+1. **Operator** seeds values into Vault once: `make vault-seed KEY=DB_PASSWORD VALUE=prod-pass`
+2. **Git** holds an `ExternalSecret` manifest — only the Vault path and key name, never the value
+3. **ArgoCD** syncs the `ExternalSecret` into the tenant namespace
+4. **ESO** authenticates to Vault using its own Kubernetes ServiceAccount JWT (no static credentials)
+5. **ESO** reads the value and creates a standard `k8s Secret` in the tenant namespace
+6. **Tenant pod** reads the secret via `secretKeyRef` — no Vault knowledge required
+
+### Developer workflow
+
+```bash
+# Check if secrets are synced
+make vault-status
+
+# Add or update a secret value
+make vault-seed KEY=MY_SECRET VALUE=my-value
+
+# Then add the key to external-secret.yaml in your tenant overlay and push
+```
+
+!!! note "Zero secrets in Git"
+    `external-secret.yaml` contains only the Vault **path** and **key name**. Values never appear in Git history.
 
 ---
 

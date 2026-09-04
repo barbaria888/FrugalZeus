@@ -1,4 +1,4 @@
-.PHONY: bootstrap apply-apps patch-nodeports ports status password test observe nodeports sync-wait clean help
+.PHONY: bootstrap apply-apps patch-nodeports ports status password test observe nodeports sync-wait clean help vault-init vault-seed vault-status
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*##' $(MAKEFILE_LIST) | sort | \
@@ -136,6 +136,39 @@ test: ## Smoke test all platform endpoints (requires 'make ports' to be running)
 
 clean: ## Tear down k3s completely (destructive)
 	/usr/local/bin/k3s-uninstall.sh 2>/dev/null || echo "k3s uninstall script not found."
+
+# ==============================================================================
+# Secrets Management (Vault + ESO)
+# ==============================================================================
+.PHONY: vault-init vault-seed vault-status
+
+vault-init: ## One-shot Vault init, unseal, k8s auth setup, and demo secret seeding
+	bash scripts/vault-init.sh
+
+vault-seed: ## Write or update a secret value in Vault (usage: make vault-seed KEY=MY_KEY VALUE=my-val PATH=tenants/team-alpha/app)
+	@if [ -z "$(KEY)" ] || [ -z "$(VALUE)" ]; then \
+		echo "Error: KEY and VALUE are required."; \
+		echo "Usage: make vault-seed KEY=MY_KEY VALUE=my-val [PATH=tenants/team-alpha/app]"; \
+		exit 1; \
+	fi
+	@SECRET_PATH=$${PATH:-tenants/team-alpha/app}; \
+	ROOT=$$(jq -r .root_token /tmp/vault-init.json 2>/dev/null || echo ""); \
+	if [ -z "$$ROOT" ]; then echo "Error: /tmp/vault-init.json not found. Run 'make vault-init' first."; exit 1; fi; \
+	kubectl exec -n vault vault-0 -- env VAULT_TOKEN=$$ROOT \
+		vault kv patch secret/$$SECRET_PATH $(KEY)=$(VALUE) 2>/dev/null || \
+	kubectl exec -n vault vault-0 -- env VAULT_TOKEN=$$ROOT \
+		vault kv put secret/$$SECRET_PATH $(KEY)=$(VALUE); \
+	echo "✓ Secret '$(KEY)' written to secret/$$SECRET_PATH"
+
+vault-status: ## Check ExternalSecret sync status and Vault pod health across all namespaces
+	@echo "=== Vault Pod ==="
+	@kubectl get pod vault-0 -n vault 2>/dev/null || echo "  vault-0 not found"
+	@echo ""
+	@echo "=== External Secrets Operator ==="
+	@kubectl get pods -n external-secrets 2>/dev/null || echo "  ESO not deployed"
+	@echo ""
+	@echo "=== ExternalSecrets (all namespaces) ==="
+	@kubectl get externalsecret -A 2>/dev/null || echo "  No ExternalSecrets found"
 
 # ==============================================================================
 # Developer Application Management (Config-Driven GitOps)

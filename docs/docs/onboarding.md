@@ -264,3 +264,70 @@ Once deployed via `make deploy APP=<name>`, verify service health:
 | **Argo CD App Not Generated** | Config not committed or pushed to `main`. | Run `make deploy APP=<name>` to commit and push changes. |
 | **`yq` Not Found Error** | `yq` CLI binary not installed locally. | Install `yq` or fallback to `python` (which auto-validates PyYAML). |
 | **Pod in `CrashLoopBackOff`** | Memory/CPU limits exceeded. | Inspect pod logs and adjust `ResourceQuota` / container requests. |
+| **`ExternalSecret` in `SecretSyncedError`** | Vault not initialised or secret path missing. | Run `make vault-init` then `make vault-seed KEY=<key> VALUE=<val>`. |
+| **Pod `CreateContainerConfigError`** | `team-alpha-secret` not yet created by ESO. | Check `make vault-status` — wait for `ExternalSecret` to show `SecretSynced`. |
+
+---
+
+## Working with Secrets
+
+FrugalZeus uses **HashiCorp Vault + External Secrets Operator**. You never touch Vault directly. The platform takes care of auth, token management, and secret delivery.
+
+### Adding a secret to your service
+
+**Step 1** — The platform operator writes the value into Vault (one command):
+
+```bash
+make vault-seed KEY=MY_API_KEY VALUE=supersecret PATH=tenants/team-alpha/app
+```
+
+**Step 2** — You add one stanza to your `external-secret.yaml`:
+
+```yaml
+# platform-gitops/tenants/team-alpha/external-secret.yaml
+data:
+  - secretKey: MY_API_KEY        # name of the key in the resulting k8s Secret
+    remoteRef:
+      key: tenants/team-alpha/app  # Vault path (matches what the operator seeded)
+      property: MY_API_KEY          # field name in Vault
+```
+
+**Step 3** — Reference it in `deployment.yaml` like any ordinary k8s Secret:
+
+```yaml
+env:
+  - name: MY_API_KEY
+    valueFrom:
+      secretKeyRef:
+        name: team-alpha-secret   # created automatically by ESO
+        key: MY_API_KEY
+```
+
+**Step 4** — `git commit && git push`. ArgoCD syncs it. ESO creates the Secret. Pod picks it up.
+
+### Verify secrets are synced
+
+```bash
+make vault-status
+# Shows: vault pod, ESO pods, and ExternalSecret sync state (should be 'SecretSynced')
+```
+
+### Update a secret value
+
+```bash
+make vault-seed KEY=MY_API_KEY VALUE=newvalue PATH=tenants/team-alpha/app
+# ESO automatically refreshes within the refreshInterval (default: 1h)
+# To force immediate refresh: kubectl annotate externalsecret team-alpha-secrets \
+#   force-sync=$(date +%s) -n tenant-team-alpha
+```
+
+!!! note "What goes in Git vs Vault"
+    | Goes in Git (`external-secret.yaml`) | Goes in Vault (`make vault-seed`) |
+    |---|---|
+    | Vault path (`tenants/team-alpha/app`) | The actual secret value |
+    | Key name (`DB_PASSWORD`) | |
+    | Refresh interval | |
+    | Target k8s Secret name | |
+
+    **No secret values ever appear in Git history.**
+

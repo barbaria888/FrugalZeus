@@ -96,6 +96,15 @@ fi
 
 # ===========================================================================
 echo ""
+echo "=== Step 4b: Vault Init + ESO Configuration ==="
+if kubectl get pod vault-0 -n vault > /dev/null 2>&1; then
+    bash scripts/vault-init.sh
+else
+    echo "! Vault pod not found — skipping vault-init (run 'make vault-init' after sync)."
+fi
+
+# ===========================================================================
+echo ""
 echo "=== Step 5: Run Terraform ==="
 if [ -d "terraform" ]; then
     kubectl port-forward svc/floci -n platform-infra 4566:4566 &

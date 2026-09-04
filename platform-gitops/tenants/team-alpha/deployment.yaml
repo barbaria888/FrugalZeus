@@ -54,6 +54,17 @@ spec:
               value: "none"
             - name: OTEL_PYTHON_FASTAPI_EXCLUDED_URLS
               value: "health,metrics"
+            # --- Secrets (injected at runtime by External Secrets Operator from Vault) ---
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: team-alpha-secret
+                  key: DB_PASSWORD
+            - name: API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: team-alpha-secret
+                  key: API_KEY
           resources:
             requests:
               cpu: 100m
