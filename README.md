@@ -20,7 +20,7 @@
 
 **FrugalZeus** is a sovereign, zero-idle-waste **Internal Developer Platform (IDP)** reference architecture. It features a **config-driven multi-environment application deployment system** (`test` / `stage` / `prod`), an end-to-end GitOps delivery pipeline, localized cloud IaC emulation, unified OpenTelemetry observability, and granular FinOps cost attribution — all orchestrated on any Self-Hosted, Managed (GKE, AKS, EKS) Kubernetes cluster, or simply a k3s/kind cluster on a local VM.
 
-> **Lightweight** and **frugal** for pure signal. Built for Platform Architects and Engineering Teams.
+> **Lightweight** and **frugal** for pure learning on how real modern software delivery workflow works.
 
 ---
 
